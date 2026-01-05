@@ -1,3 +1,5 @@
+console.log("app.js carregado");
+
 /* ================================
    SUPABASE CONFIG
 ================================ */
@@ -144,3 +146,4 @@ async function logout() {
   await supabaseClient.auth.signOut();
   location.reload();
 }
+
