@@ -13,11 +13,12 @@ th, td { border:1px solid #ddd; padding:6px }
 th { background:#eee }
 </style>
 </head>
+
 <body>
 
 <h2>Financeiro Pessoal v2.4</h2>
 
-<!-- LOGIN -->
+<!-- AUTH -->
 <section id="auth">
   <input id="email" placeholder="Email">
   <input id="password" type="password" placeholder="Senha">
@@ -31,14 +32,14 @@ th { background:#eee }
 <!-- DASHBOARD -->
 <section>
   <h3>Dashboard</h3>
-  <p><b>Saldo real:</b> R$ <span id="saldo">0</span></p>
-  <p><b>Total que me devem:</b> R$ <span id="meDevem">0</span></p>
+  <p><b>Saldo real:</b> R$ <span id="saldo">0.00</span></p>
+  <p><b>Total que me devem:</b> R$ <span id="meDevem">0.00</span></p>
 </section>
 
 <!-- CARTEIRAS -->
 <section>
   <h3>Carteiras / Cartões</h3>
-  <input id="wallet_name" placeholder="Nome">
+  <input id="wallet_name" placeholder="Nome da carteira/cartão">
   <select id="wallet_type">
     <option value="wallet">Carteira / Conta</option>
     <option value="credit_card">Cartão</option>
@@ -79,7 +80,7 @@ th { background:#eee }
   <select id="person" class="hidden"></select>
   <input id="split" type="number" class="hidden" placeholder="Qtd pessoas">
 
-  <label class="hidden">
+  <label id="paidLabel" class="hidden">
     <input type="checkbox" id="paid" onchange="paidChange()"> Já me pagou
   </label>
 
@@ -88,7 +89,7 @@ th { background:#eee }
   <button onclick="saveTransaction()">Salvar</button>
 </section>
 
-<!-- LISTA -->
+<!-- TRANSAÇÕES -->
 <section>
   <h3>Movimentações</h3>
   <table>
@@ -107,57 +108,66 @@ th { background:#eee }
 
 <!-- SUPABASE -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
 <script>
-const supabase = window.supabase.createClient(
+/* ========= SUPABASE (UMA ÚNICA VEZ) ========= */
+window.supabaseClient = window.supabase.createClient(
   "https://rbxadmxxbrhgvbgcclxa.supabase.co",
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJieGFkbXh4YnJoZ3ZiZ2NjbHhhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc2MTQ2MjAsImV4cCI6MjA4MzE5MDYyMH0.AI0_5k8t26J_Vu2WEBMB7lI8mzJDisV5bvKTAv42SjE"
 );
 </script>
 
 <script>
-/* AUTH */
+/* ========= AUTH ========= */
 async function login() {
-  const { error } = await supabase.auth.signInWithPassword({
+  const { error } = await supabaseClient.auth.signInWithPassword({
     email: email.value,
     password: password.value
   });
-  if (!error) startApp();
+  if (error) {
+    alert(error.message);
+  } else {
+    startApp();
+  }
 }
 
 async function registerUser() {
-  await supabase.auth.signUp({
+  const { error } = await supabaseClient.auth.signUp({
     email: email.value,
     password: password.value
   });
-  alert("Usuário criado");
+  if (error) alert(error.message);
+  else alert("Usuário criado com sucesso");
 }
 
-async function startApp() {
+function startApp() {
   auth.classList.add("hidden");
   app.classList.remove("hidden");
   loadAll();
 }
 
-/* UI */
+/* ========= UI ========= */
 function ownerChange() {
   person.classList.toggle("hidden", owner_type.value === "me");
   split.classList.toggle("hidden", owner_type.value !== "shared");
-  paid.parentElement.classList.toggle("hidden", owner_type.value !== "other");
+  paidLabel.classList.toggle("hidden", owner_type.value !== "other");
+  paid_value.classList.add("hidden");
+  paid.checked = false;
 }
 
 function paidChange() {
   paid_value.classList.toggle("hidden", !paid.checked);
 }
 
-/* LOADERS */
+/* ========= LOAD ========= */
 async function loadAll() {
-  loadWallets();
-  loadPeople();
-  loadTransactions();
+  await loadWallets();
+  await loadPeople();
+  await loadTransactions();
 }
 
 async function loadWallets() {
-  const { data } = await supabase.from("wallets").select("*");
+  const { data } = await supabaseClient.from("wallets").select("*");
   wallet.innerHTML = "";
   wallets.innerHTML = "";
   data.forEach(w => {
@@ -167,7 +177,7 @@ async function loadWallets() {
 }
 
 async function loadPeople() {
-  const { data } = await supabase.from("people").select("*");
+  const { data } = await supabaseClient.from("people").select("*");
   person.innerHTML = "";
   people.innerHTML = "";
   data.forEach(p => {
@@ -176,23 +186,26 @@ async function loadPeople() {
   });
 }
 
-/* CRUD */
+/* ========= CRUD ========= */
 async function addWallet() {
-  await supabase.from("wallets").insert({
+  await supabaseClient.from("wallets").insert({
     name: wallet_name.value,
     type: wallet_type.value,
     limit: wallet_limit.value || null
   });
+  wallet_name.value = "";
+  wallet_limit.value = "";
   loadWallets();
 }
 
 async function addPerson() {
-  await supabase.from("people").insert({ name: person_name.value });
+  await supabaseClient.from("people").insert({ name: person_name.value });
+  person_name.value = "";
   loadPeople();
 }
 
 async function saveTransaction() {
-  await supabase.from("transactions").insert({
+  await supabaseClient.from("transactions").insert({
     description: desc.value,
     amount: amount.value,
     type: type.value,
@@ -203,25 +216,28 @@ async function saveTransaction() {
     paid_by_other: paid.checked,
     other_paid_amount: paid_value.value || 0
   });
+
+  desc.value = amount.value = "";
   loadTransactions();
 }
 
-/* DASHBOARD */
+/* ========= DASHBOARD ========= */
 async function loadTransactions() {
-  const { data } = await supabase.from("transactions").select("*");
+  const { data } = await supabaseClient.from("transactions").select("*");
   transactions.innerHTML = "";
+
   let saldo = 0;
   let meDevem = 0;
 
   data.forEach(t => {
     let minhaParte = t.amount;
 
-    if (t.owner_type === "shared") {
+    if (t.owner_type === "shared" && t.split_count) {
       minhaParte = t.amount / t.split_count;
     }
 
     if (t.owner_type === "other") {
-      minhaParte = t.paid_by_other ? 0 : t.amount - t.other_paid_amount;
+      minhaParte = t.paid_by_other ? 0 : (t.amount - t.other_paid_amount);
       meDevem += minhaParte;
     }
 
@@ -230,18 +246,20 @@ async function loadTransactions() {
     transactions.innerHTML += `
       <tr>
         <td>${t.description}</td>
-        <td>R$ ${t.amount}</td>
-        <td>R$ ${minhaParte.toFixed(2)}</td>
-      </tr>
-    `;
+        <td>R$ ${Number(t.amount).toFixed(2)}</td>
+        <td>R$ ${Number(minhaParte).toFixed(2)}</td>
+      </tr>`;
   });
 
-  document.getElementById("saldo").innerText = saldo.toFixed(2);
-  document.getElementById("meDevem").innerText = meDevem.toFixed(2);
+  saldoEl.innerText = saldo.toFixed(2);
+  meDevemEl.innerText = meDevem.toFixed(2);
 }
 
-/* AUTO LOGIN */
-supabase.auth.getSession().then(({ data }) => {
+/* ========= AUTO LOGIN ========= */
+const saldoEl = document.getElementById("saldo");
+const meDevemEl = document.getElementById("meDevem");
+
+supabaseClient.auth.getSession().then(({ data }) => {
   if (data.session) startApp();
 });
 </script>
