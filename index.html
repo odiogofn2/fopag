@@ -4,13 +4,170 @@
 <meta charset="UTF-8">
 <title>Financeiro v2.4</title>
 <style>
-body { font-family: Arial; background:#f5f5f5; padding:20px }
-section { background:#fff; padding:15px; margin-bottom:20px; border-radius:6px }
-input, select, button { margin:5px 0; padding:6px; width:100% }
-.hidden { display:none }
-table { width:100%; border-collapse:collapse }
-th, td { border:1px solid #ddd; padding:6px }
-th { background:#eee }
+:root {
+  --bg: #f2f4f8;
+  --card: #ffffff;
+  --primary: #2563eb;
+  --primary-hover: #1e40af;
+  --text: #111827;
+  --muted: #6b7280;
+  --border: #e5e7eb;
+  --success: #16a34a;
+  --danger: #dc2626;
+  --radius: 10px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 30px;
+  font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+h2 {
+  margin-bottom: 25px;
+  font-size: 28px;
+  font-weight: 600;
+}
+
+h3 {
+  margin: 0 0 15px 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+section {
+  background: var(--card);
+  border-radius: var(--radius);
+  padding: 20px;
+  margin-bottom: 25px;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.06);
+}
+
+#app {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 25px;
+}
+
+#app section {
+  margin-bottom: 0;
+}
+
+#app section:nth-child(1) {
+  grid-column: span 2;
+}
+
+input,
+select {
+  width: 100%;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  font-size: 14px;
+  background: #fff;
+}
+
+input:focus,
+select:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+button {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: none;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  background: var(--primary);
+  color: #fff;
+  transition: background 0.2s;
+}
+
+button:hover {
+  background: var(--primary-hover);
+}
+
+ul {
+  list-style: none;
+  padding: 0;
+  margin: 10px 0 0 0;
+}
+
+ul li {
+  padding: 8px 10px;
+  background: #f9fafb;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  margin-bottom: 6px;
+  font-size: 14px;
+}
+
+.hidden {
+  display: none;
+}
+
+/* DASHBOARD */
+#saldo,
+#meDevem {
+  font-size: 22px;
+  font-weight: 600;
+}
+
+#saldo {
+  color: var(--success);
+}
+
+#meDevem {
+  color: var(--danger);
+}
+
+/* TABLE */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+th {
+  text-align: left;
+  background: #f9fafb;
+  color: var(--muted);
+  font-weight: 500;
+  padding: 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+td {
+  padding: 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+tbody tr:hover {
+  background: #f9fafb;
+}
+
+/* AUTH */
+#auth {
+  max-width: 380px;
+}
+
+/* LABEL */
+label {
+  font-size: 13px;
+  color: var(--muted);
+  display: block;
+  margin-bottom: 8px;
+}
 </style>
 </head>
 
