@@ -1,37 +1,25 @@
-// ===================================================
-// SUPABASE (CRIADO UMA ÚNICA VEZ)
-// ===================================================
-const SUPABASE_URL = "https://rbxadmxxbrhgvbgcclxa.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJieGFkbXh4YnJoZ3ZiZ2NjbHhhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc2MTQ2MjAsImV4cCI6MjA4MzE5MDYyMH0.AI0_5k8t26J_Vu2WEBMB7lI8mzJDisV5bvKTAv42SjE";
-
+// =======================
+// SUPABASE
+// =======================
 const supabaseClient = window.supabase.createClient(
-  SUPABASE_URL,
-  SUPABASE_ANON_KEY
+  "https://rbxadmxxbrhgvbgcclxa.supabase.co",
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJieGFkbXh4YnJoZ3ZiZ2NjbHhhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc2MTQ2MjAsImV4cCI6MjA4MzE5MDYyMH0.AI0_5k8t26J_Vu2WEBMB7lI8mzJDisV5bvKTAv42SjE"
 );
 
-// ===================================================
+// =======================
 // LOGIN
-// ===================================================
-document.addEventListener("DOMContentLoaded", () => {
-  document.getElementById("btnLogin").addEventListener("click", login);
-});
+// =======================
+document.getElementById("btnLogin").onclick = login;
 
 async function login() {
-  const email = document.getElementById("email").value;
-  const password = document.getElementById("password").value;
-  const msg = document.getElementById("loginMsg");
+  const email = email.value;
+  const password = password.value;
+  const msg = loginMsg;
 
   msg.innerText = "Entrando...";
 
-  const { error } = await supabaseClient.auth.signInWithPassword({
-    email,
-    password
-  });
-
-  if (error) {
-    msg.innerText = error.message;
-    return;
-  }
+  const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+  if (error) return msg.innerText = error.message;
 
   iniciarSistema();
 }
@@ -41,155 +29,118 @@ async function logout() {
   location.reload();
 }
 
-// ===================================================
+// =======================
 // SISTEMA
-// ===================================================
+// =======================
 async function iniciarSistema() {
-  document.getElementById("loginView").classList.add("hidden");
-  document.getElementById("systemView").classList.remove("hidden");
-
-  showTab("dashboard");
+  loginView.classList.add("hidden");
+  systemView.classList.remove("hidden");
 
   await carregarCarteiras();
   await carregarPessoas();
-  await carregarDashboard();
+  showTab("dashboard");
+  carregarDashboard();
 }
 
-function showTab(tabId) {
+function showTab(id) {
   document.querySelectorAll(".tab").forEach(t => t.classList.add("hidden"));
-  document.getElementById(tabId).classList.remove("hidden");
+  const el = document.getElementById(id);
+  if (el) el.classList.remove("hidden");
 }
 
-// ===================================================
+// =======================
 // CARTEIRAS
-// ===================================================
+// =======================
 async function salvarCarteira() {
-  const nome = document.getElementById("carteiraNome").value.trim();
-  if (!nome) return alert("Informe o nome da carteira");
-
   const user = (await supabaseClient.auth.getUser()).data.user;
-
-  await supabaseClient.from("carteiras").insert({
-    nome,
-    user_id: user.id
-  });
-
-  document.getElementById("carteiraNome").value = "";
+  await supabaseClient.from("carteiras").insert({ nome: carteiraNome.value, user_id: user.id });
+  carteiraNome.value = "";
   carregarCarteiras();
 }
 
 async function carregarCarteiras() {
-  const { data } = await supabaseClient
-    .from("carteiras")
-    .select("*")
-    .order("nome");
-
-  const lista = document.getElementById("listaCarteiras");
-  const select = document.getElementById("movCarteira");
-
-  lista.innerHTML = "";
-  select.innerHTML = "";
-
-  if (!data) return;
-
-  data.forEach(c => {
-    lista.innerHTML += `<li>${c.nome}</li>`;
-    select.innerHTML += `<option value="${c.id}">${c.nome}</option>`;
+  const { data } = await supabaseClient.from("carteiras").select("*").order("nome");
+  listaCarteiras.innerHTML = movCarteira.innerHTML = "";
+  data?.forEach(c => {
+    listaCarteiras.innerHTML += `<li>${c.nome}</li>`;
+    movCarteira.innerHTML += `<option value="${c.id}">${c.nome}</option>`;
   });
 }
 
-// ===================================================
+// =======================
 // PESSOAS
-// ===================================================
+// =======================
 async function salvarPessoa() {
-  const nome = document.getElementById("pessoaNome").value.trim();
-  if (!nome) return alert("Informe o nome da pessoa");
-
   const user = (await supabaseClient.auth.getUser()).data.user;
-
-  await supabaseClient.from("pessoas").insert({
-    nome,
-    user_id: user.id
-  });
-
-  document.getElementById("pessoaNome").value = "";
+  await supabaseClient.from("pessoas").insert({ nome: pessoaNome.value, user_id: user.id });
+  pessoaNome.value = "";
   carregarPessoas();
 }
 
 async function carregarPessoas() {
-  const { data } = await supabaseClient
-    .from("pessoas")
-    .select("*")
-    .order("nome");
-
-  const lista = document.getElementById("listaPessoas");
-  const select = document.getElementById("movPessoa");
-
-  lista.innerHTML = "";
-  select.innerHTML = "";
-
-  if (!data) return;
-
-  data.forEach(p => {
-    lista.innerHTML += `<li>${p.nome}</li>`;
-    select.innerHTML += `<option value="${p.id}">${p.nome}</option>`;
+  const { data } = await supabaseClient.from("pessoas").select("*").order("nome");
+  listaPessoas.innerHTML = movPessoa.innerHTML = "";
+  data?.forEach(p => {
+    listaPessoas.innerHTML += `<li>${p.nome}</li>`;
+    movPessoa.innerHTML += `<option value="${p.id}">${p.nome}</option>`;
   });
 }
 
-// ===================================================
-// MOVIMENTAÇÕES (PARCELAMENTO AUTOMÁTICO)
-// ===================================================
+// =======================
+// MOVIMENTAÇÕES
+// =======================
 async function salvarMovimentacao() {
-  const desc = document.getElementById("movDesc").value;
-  const total = Number(document.getElementById("movValor").value);
-  const parcelas = Number(document.getElementById("movParcelas").value || 1);
-  const mesBase = Number(document.getElementById("movMes").value);
-  const anoBase = Number(document.getElementById("movAno").value);
-
-  const carteira = document.getElementById("movCarteira").value;
-  const pessoa = document.getElementById("movPessoa").value;
-
-  if (!desc || !total || !mesBase || !anoBase)
-    return alert("Preencha todos os campos");
-
   const user = (await supabaseClient.auth.getUser()).data.user;
-  const valorParcela = total / parcelas;
+
+  const parcelas = Number(movParcelas.value || 1);
+  const valorParcela = Number(movValor.value) / parcelas;
+  const percentual = Number(movPercentual.value || 100);
 
   for (let i = 0; i < parcelas; i++) {
-    let mes = mesBase + i;
-    let ano = anoBase;
-
-    if (mes > 12) {
-      mes -= 12;
-      ano += 1;
-    }
+    let mes = Number(movMes.value) + i;
+    let ano = Number(movAno.value);
+    if (mes > 12) { mes -= 12; ano++; }
 
     await supabaseClient.from("movimentacoes").insert({
-      descricao: desc,
-      valor: valorParcela,
+      descricao: movDesc.value,
+      valor: valorParcela * (percentual / 100),
       mes,
       ano,
-      carteira_id: carteira,
-      pessoa_id: pessoa,
+      status: movStatus.value,
+      carteira_id: movCarteira.value,
+      pessoa_id: movPessoa.value,
       user_id: user.id
     });
   }
 
-  alert("Movimentação salva com sucesso");
+  alert("Movimentação salva");
   carregarDashboard();
 }
 
-// ===================================================
+// =======================
 // DASHBOARD
-// ===================================================
+// =======================
 async function carregarDashboard() {
-  const { data } = await supabaseClient
-    .from("movimentacoes")
-    .select("valor");
+  const mes = filtroMes.value;
+  const ano = filtroAno.value;
 
-  if (!data) return;
+  let query = supabaseClient.from("movimentacoes").select("*");
+  if (mes) query = query.eq("mes", mes);
+  if (ano) query = query.eq("ano", ano);
 
-  const total = data.reduce((s, m) => s + Number(m.valor), 0);
-  document.getElementById("dashboardResumo").innerText =
-    `Total registrado: R$ ${total.toFixed(2)}`;
+  const { data } = await query;
+
+  let total = 0, pago = 0, pendente = 0;
+
+  data?.forEach(m => {
+    total += Number(m.valor);
+    if (m.status === "pago") pago += Number(m.valor);
+    else pendente += Number(m.valor);
+  });
+
+  dashboardResumo.innerHTML = `
+    <p>Total: R$ ${total.toFixed(2)}</p>
+    <p>Pago: R$ ${pago.toFixed(2)}</p>
+    <p>Pendente: R$ ${pendente.toFixed(2)}</p>
+  `;
 }
