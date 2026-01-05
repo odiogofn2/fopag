@@ -1,37 +1,60 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-br">
 <head>
-  <meta charset="UTF-8" />
-  <title>Financeiro v2.7</title>
-  <link rel="stylesheet" href="style.css" />
+  <meta charset="UTF-8">
+  <title>Controle Financeiro v3.0</title>
+
+  <link rel="stylesheet" href="style.css">
+
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script defer src="app.js"></script>
 </head>
 <body>
 
-<div id="auth">
-  <h2>Financeiro</h2>
-  <input id="email" placeholder="Email">
+<!-- AUTH -->
+<div id="auth" class="card">
+  <h2>Login</h2>
+
+  <input id="email" type="email" placeholder="Email">
   <input id="password" type="password" placeholder="Senha">
+
   <button onclick="login()">Entrar</button>
-  <button onclick="register()">Cadastrar</button>
+  <button onclick="register()">Criar Conta</button>
 </div>
 
+<!-- APP -->
 <div id="app" class="hidden">
 
+  <header>
+    <h1>Financeiro v3.0</h1>
+    <button onclick="logout()">Sair</button>
+  </header>
+
+  <!-- TABS -->
   <nav>
     <button onclick="showTab('dashboard')">Dashboard</button>
     <button onclick="showTab('movimentacoes')">Movimentações</button>
     <button onclick="showTab('carteiras')">Carteiras</button>
     <button onclick="showTab('pessoas')">Pessoas</button>
-    <button onclick="logout()">Sair</button>
   </nav>
 
   <!-- DASHBOARD -->
   <section id="dashboard" class="tab">
     <h2>Resumo Mensal</h2>
-    <select id="mes"></select>
-    <select id="ano"></select>
-    <div id="resumo"></div>
+
+    <div class="filters">
+      <select id="filtroMes"></select>
+      <select id="filtroAno"></select>
+      <button onclick="carregarDashboard()">Atualizar</button>
+    </div>
+
+    <div class="grid">
+      <div class="box">Total Gasto<br><span id="totalGasto">R$ 0</span></div>
+      <div class="box">Pago<br><span id="totalPago">R$ 0</span></div>
+      <div class="box">Em Aberto<br><span id="totalAberto">R$ 0</span></div>
+      <div class="box">Outros Devem<br><span id="totalOutros">R$ 0</span></div>
+      <div class="box">Lançamentos<br><span id="qtd">0</span></div>
+    </div>
   </section>
 
   <!-- MOVIMENTAÇÕES -->
@@ -39,29 +62,19 @@
     <h2>Nova Movimentação</h2>
 
     <input id="descricao" placeholder="Descrição">
-    <input id="valor" type="number" placeholder="Valor total">
+    <input id="valor" type="number" placeholder="Valor Total">
+
+    <label>
+      Parcelado?
+      <input type="number" id="parcelas" value="1" min="1">
+    </label>
 
     <select id="carteira"></select>
-
-    <select id="parcelas">
-      <option value="1">À vista</option>
-      <option value="2">2x</option>
-      <option value="3">3x</option>
-      <option value="4">4x</option>
-      <option value="6">6x</option>
-      <option value="12">12x</option>
-    </select>
-
-    <select id="responsavel">
-      <option value="eu">Minha</option>
-      <option value="outra">Outra pessoa</option>
-      <option value="dividida">Dividida</option>
-    </select>
-
     <select id="pessoa"></select>
 
     <label>
-      <input type="checkbox" id="pago"> Pessoa já pagou
+      Pago?
+      <input type="checkbox" id="pago">
     </label>
 
     <button onclick="salvarMovimentacao()">Salvar</button>
@@ -70,21 +83,23 @@
   <!-- CARTEIRAS -->
   <section id="carteiras" class="tab hidden">
     <h2>Carteiras</h2>
-    <input id="novaCarteira" placeholder="Nome da carteira">
-    <button onclick="addCarteira()">Adicionar</button>
+
+    <input id="novaCarteira" placeholder="Nome da Carteira">
+    <button onclick="salvarCarteira()">Adicionar</button>
+
     <ul id="listaCarteiras"></ul>
   </section>
 
   <!-- PESSOAS -->
   <section id="pessoas" class="tab hidden">
     <h2>Pessoas</h2>
-    <input id="novaPessoa" placeholder="Nome">
-    <button onclick="addPessoa()">Adicionar</button>
+
+    <input id="novaPessoa" placeholder="Nome da Pessoa">
+    <button onclick="salvarPessoa()">Adicionar</button>
+
     <ul id="listaPessoas"></ul>
   </section>
 
 </div>
-
-<script src="app.js"></script>
 </body>
 </html>
