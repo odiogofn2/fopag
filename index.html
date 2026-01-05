@@ -5,24 +5,19 @@
   <title>Controle Financeiro v3.0</title>
 
   <link rel="stylesheet" href="style.css">
-
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script defer src="app.js"></script>
 </head>
 <body>
 
-<!-- AUTH -->
 <div id="auth" class="card">
   <h2>Login</h2>
-
   <input id="email" type="email" placeholder="Email">
   <input id="password" type="password" placeholder="Senha">
-
   <button onclick="login()">Entrar</button>
   <button onclick="register()">Criar Conta</button>
 </div>
 
-<!-- APP -->
 <div id="app" class="hidden">
 
   <header>
@@ -30,7 +25,6 @@
     <button onclick="logout()">Sair</button>
   </header>
 
-  <!-- TABS -->
   <nav>
     <button onclick="showTab('dashboard')">Dashboard</button>
     <button onclick="showTab('movimentacoes')">Movimentações</button>
@@ -49,10 +43,10 @@
     </div>
 
     <div class="grid">
-      <div class="box">Total Gasto<br><span id="totalGasto">R$ 0</span></div>
-      <div class="box">Pago<br><span id="totalPago">R$ 0</span></div>
-      <div class="box">Em Aberto<br><span id="totalAberto">R$ 0</span></div>
-      <div class="box">Outros Devem<br><span id="totalOutros">R$ 0</span></div>
+      <div class="box">Total Gasto<br><span id="totalGasto">0</span></div>
+      <div class="box">Pago<br><span id="totalPago">0</span></div>
+      <div class="box">Em Aberto<br><span id="totalAberto">0</span></div>
+      <div class="box">Outros Devem<br><span id="totalOutros">0</span></div>
       <div class="box">Lançamentos<br><span id="qtd">0</span></div>
     </div>
   </section>
@@ -63,11 +57,7 @@
 
     <input id="descricao" placeholder="Descrição">
     <input id="valor" type="number" placeholder="Valor Total">
-
-    <label>
-      Parcelado?
-      <input type="number" id="parcelas" value="1" min="1">
-    </label>
+    <input id="parcelas" type="number" value="1" min="1">
 
     <select id="carteira"></select>
     <select id="pessoa"></select>
@@ -83,20 +73,16 @@
   <!-- CARTEIRAS -->
   <section id="carteiras" class="tab hidden">
     <h2>Carteiras</h2>
-
     <input id="novaCarteira" placeholder="Nome da Carteira">
     <button onclick="salvarCarteira()">Adicionar</button>
-
     <ul id="listaCarteiras"></ul>
   </section>
 
   <!-- PESSOAS -->
   <section id="pessoas" class="tab hidden">
     <h2>Pessoas</h2>
-
     <input id="novaPessoa" placeholder="Nome da Pessoa">
     <button onclick="salvarPessoa()">Adicionar</button>
-
     <ul id="listaPessoas"></ul>
   </section>
 

@@ -1,6 +1,6 @@
 body {
   font-family: Arial, sans-serif;
-  background: #f2f4f8;
+  background: #f1f5f9;
   margin: 0;
 }
 
@@ -11,15 +11,15 @@ body {
 .card {
   width: 320px;
   margin: 80px auto;
-  padding: 20px;
   background: white;
+  padding: 20px;
   border-radius: 8px;
 }
 
 input, select, button {
   width: 100%;
-  margin: 6px 0;
   padding: 8px;
+  margin: 6px 0;
 }
 
 button {
@@ -31,11 +31,11 @@ button {
 }
 
 header {
-  display: flex;
-  justify-content: space-between;
-  padding: 12px;
   background: #1e293b;
   color: white;
+  padding: 12px;
+  display: flex;
+  justify-content: space-between;
 }
 
 nav {
@@ -54,7 +54,7 @@ nav button {
 
 .grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit,minmax(150px,1fr));
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   gap: 10px;
 }
 
@@ -62,6 +62,6 @@ nav button {
   background: white;
   padding: 20px;
   border-radius: 6px;
-  font-size: 18px;
   text-align: center;
+  font-size: 18px;
 }
