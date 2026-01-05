@@ -1,67 +1,79 @@
 body {
-  font-family: Arial, sans-serif;
-  background: #f1f5f9;
   margin: 0;
+  font-family: 'Segoe UI', sans-serif;
+  background: #f4f6f8;
 }
 
-.hidden {
-  display: none;
+.hidden { display: none; }
+
+.auth-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
 }
 
 .card {
-  width: 320px;
-  margin: 80px auto;
   background: white;
-  padding: 20px;
-  border-radius: 8px;
+  padding: 30px;
+  border-radius: 10px;
+  width: 320px;
+}
+
+label {
+  font-size: 14px;
+  margin-top: 10px;
+  display: block;
 }
 
 input, select, button {
   width: 100%;
-  padding: 8px;
-  margin: 6px 0;
+  padding: 10px;
+  margin-top: 5px;
 }
 
 button {
+  margin-top: 15px;
   background: #2563eb;
   color: white;
   border: none;
-  border-radius: 4px;
-  cursor: pointer;
+  border-radius: 6px;
 }
 
-header {
+button.secondary {
+  background: #64748b;
+}
+
+#app {
+  display: flex;
+  height: 100vh;
+}
+
+aside {
+  width: 220px;
   background: #1e293b;
   color: white;
-  padding: 12px;
-  display: flex;
-  justify-content: space-between;
-}
-
-nav {
-  display: flex;
-  gap: 6px;
-  padding: 10px;
-}
-
-nav button {
-  flex: 1;
-}
-
-.tab {
   padding: 20px;
+}
+
+aside button {
+  width: 100%;
+  margin-bottom: 10px;
+}
+
+main {
+  flex: 1;
+  padding: 30px;
 }
 
 .grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 20px;
 }
 
 .box {
   background: white;
   padding: 20px;
-  border-radius: 6px;
-  text-align: center;
-  font-size: 18px;
+  border-radius: 10px;
 }

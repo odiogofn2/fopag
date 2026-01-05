@@ -2,89 +2,112 @@
 <html lang="pt-br">
 <head>
   <meta charset="UTF-8">
-  <title>Controle Financeiro v3.0</title>
-
+  <title>Financeiro v4.0</title>
   <link rel="stylesheet" href="style.css">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script defer src="app.js"></script>
 </head>
 <body>
 
-<div id="auth" class="card">
-  <h2>Login</h2>
-  <input id="email" type="email" placeholder="Email">
-  <input id="password" type="password" placeholder="Senha">
-  <button onclick="login()">Entrar</button>
-  <button onclick="register()">Criar Conta</button>
+<div class="auth-container" id="auth">
+  <div class="card">
+    <h2>Controle Financeiro</h2>
+    <p>Acesse sua conta</p>
+
+    <label>Email</label>
+    <input id="email" type="email">
+
+    <label>Senha</label>
+    <input id="password" type="password">
+
+    <button onclick="login()">Entrar</button>
+    <button class="secondary" onclick="register()">Criar Conta</button>
+  </div>
 </div>
 
 <div id="app" class="hidden">
 
-  <header>
-    <h1>Financeiro v3.0</h1>
-    <button onclick="logout()">Sair</button>
-  </header>
-
-  <nav>
+  <aside>
+    <h3>Financeiro</h3>
     <button onclick="showTab('dashboard')">Dashboard</button>
     <button onclick="showTab('movimentacoes')">Movimentações</button>
     <button onclick="showTab('carteiras')">Carteiras</button>
     <button onclick="showTab('pessoas')">Pessoas</button>
-  </nav>
+    <button onclick="logout()">Sair</button>
+  </aside>
 
-  <!-- DASHBOARD -->
-  <section id="dashboard" class="tab">
-    <h2>Resumo Mensal</h2>
+  <main>
+    <!-- DASHBOARD -->
+    <section id="dashboard" class="tab">
+      <h2>Resumo Mensal</h2>
+      <div class="grid">
+        <div class="box"><span>Total</span><strong id="total"></strong></div>
+        <div class="box"><span>Pago</span><strong id="pago"></strong></div>
+        <div class="box"><span>Em Aberto</span><strong id="aberto"></strong></div>
+      </div>
+    </section>
 
-    <div class="filters">
-      <select id="filtroMes"></select>
-      <select id="filtroAno"></select>
-      <button onclick="carregarDashboard()">Atualizar</button>
-    </div>
+    <!-- MOVIMENTAÇÕES -->
+    <section id="movimentacoes" class="tab hidden">
+      <h2>Nova Movimentação</h2>
 
-    <div class="grid">
-      <div class="box">Total Gasto<br><span id="totalGasto">0</span></div>
-      <div class="box">Pago<br><span id="totalPago">0</span></div>
-      <div class="box">Em Aberto<br><span id="totalAberto">0</span></div>
-      <div class="box">Outros Devem<br><span id="totalOutros">0</span></div>
-      <div class="box">Lançamentos<br><span id="qtd">0</span></div>
-    </div>
-  </section>
+      <label>Descrição</label>
+      <input id="descricao">
 
-  <!-- MOVIMENTAÇÕES -->
-  <section id="movimentacoes" class="tab hidden">
-    <h2>Nova Movimentação</h2>
+      <label>Tipo</label>
+      <select id="tipo">
+        <option value="saida">Despesa</option>
+        <option value="entrada">Receita</option>
+      </select>
 
-    <input id="descricao" placeholder="Descrição">
-    <input id="valor" type="number" placeholder="Valor Total">
-    <input id="parcelas" type="number" value="1" min="1">
+      <label>Valor total</label>
+      <input id="valor" type="number">
 
-    <select id="carteira"></select>
-    <select id="pessoa"></select>
+      <label>Parcelas</label>
+      <input id="parcelas" type="number" value="1" min="1">
 
-    <label>
-      Pago?
-      <input type="checkbox" id="pago">
-    </label>
+      <label>Carteira usada</label>
+      <select id="carteira"></select>
 
-    <button onclick="salvarMovimentacao()">Salvar</button>
-  </section>
+      <label>Relacionado a alguém?</label>
+      <select id="pessoa"></select>
 
-  <!-- CARTEIRAS -->
-  <section id="carteiras" class="tab hidden">
-    <h2>Carteiras</h2>
-    <input id="novaCarteira" placeholder="Nome da Carteira">
-    <button onclick="salvarCarteira()">Adicionar</button>
-    <ul id="listaCarteiras"></ul>
-  </section>
+      <label>
+        <input type="checkbox" id="pago"> Já foi pago
+      </label>
 
-  <!-- PESSOAS -->
-  <section id="pessoas" class="tab hidden">
-    <h2>Pessoas</h2>
-    <input id="novaPessoa" placeholder="Nome da Pessoa">
-    <button onclick="salvarPessoa()">Adicionar</button>
-    <ul id="listaPessoas"></ul>
-  </section>
+      <button onclick="salvarMovimentacao()">Salvar</button>
+    </section>
+
+    <!-- CARTEIRAS -->
+    <section id="carteiras" class="tab hidden">
+      <h2>Carteiras</h2>
+
+      <label>Nome</label>
+      <input id="novaCarteira">
+
+      <label>Tipo</label>
+      <select id="tipoCarteira">
+        <option value="dinheiro">Dinheiro</option>
+        <option value="cartao">Cartão</option>
+        <option value="banco">Conta Bancária</option>
+      </select>
+
+      <button onclick="salvarCarteira()">Adicionar</button>
+      <ul id="listaCarteiras"></ul>
+    </section>
+
+    <!-- PESSOAS -->
+    <section id="pessoas" class="tab hidden">
+      <h2>Pessoas</h2>
+
+      <label>Nome</label>
+      <input id="novaPessoa">
+
+      <button onclick="salvarPessoa()">Adicionar</button>
+      <ul id="listaPessoas"></ul>
+    </section>
+  </main>
 
 </div>
 </body>
