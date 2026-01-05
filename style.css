@@ -27,13 +27,11 @@ input, select {
 }
 
 button {
-  width: 100%;
   padding: 10px;
   background: #2563eb;
   color: #fff;
   border: none;
   border-radius: 6px;
-  margin-top: 10px;
   cursor: pointer;
 }
 
@@ -51,14 +49,15 @@ button:hover {
   margin-bottom: 20px;
 }
 
-.tabs button {
-  width: auto;
-  padding: 8px 14px;
-}
-
 .tab {
   background: #020617;
   padding: 20px;
   border-radius: 12px;
-  min-width: 400px;
+  min-width: 420px;
+}
+
+.filters {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 10px;
 }
