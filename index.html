@@ -2,9 +2,9 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <title>Financeiro 4.1</title>
+  <title>Financeiro 5.0</title>
 
-  <!-- SUPABASE CDN (SEM MODULE) -->
+  <!-- Supabase CDN -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <link rel="stylesheet" href="style.css">
@@ -12,20 +12,82 @@
 <body>
 
 <div id="app">
-  <div id="loginView">
+
+  <!-- LOGIN -->
+  <div id="loginView" class="card">
+    <h2>Entrar</h2>
     <input id="email" placeholder="Email">
     <input id="password" type="password" placeholder="Senha">
     <button id="btnLogin">Entrar</button>
     <p id="loginMsg"></p>
   </div>
 
+  <!-- SISTEMA -->
   <div id="systemView" class="hidden">
-    <h1>Logado com sucesso</h1>
+
+    <nav class="tabs">
+      <button onclick="showTab('dashboard')">Dashboard</button>
+      <button onclick="showTab('movimentacoes')">Movimentações</button>
+      <button onclick="showTab('carteiras')">Carteiras</button>
+      <button onclick="showTab('pessoas')">Pessoas</button>
+      <button onclick="logout()">Sair</button>
+    </nav>
+
+    <!-- DASHBOARD -->
+    <section id="dashboard" class="tab">
+      <h2>Resumo</h2>
+
+      <div class="filters">
+        <input id="filtroMes" type="number" placeholder="Mês (1-12)">
+        <input id="filtroAno" type="number" placeholder="Ano">
+        <button onclick="carregarDashboard()">Filtrar</button>
+      </div>
+
+      <div id="dashboardResumo"></div>
+    </section>
+
+    <!-- MOVIMENTAÇÕES -->
+    <section id="movimentacoes" class="tab hidden">
+      <h2>Nova Movimentação</h2>
+
+      <input id="movDesc" placeholder="Descrição">
+      <input id="movValor" type="number" placeholder="Valor total">
+      <input id="movParcelas" type="number" placeholder="Parcelas (1 = à vista)">
+      <input id="movMes" type="number" placeholder="Mês inicial">
+      <input id="movAno" type="number" placeholder="Ano">
+
+      <select id="movCarteira"></select>
+      <select id="movPessoa"></select>
+
+      <select id="movStatus">
+        <option value="pendente">Pendente</option>
+        <option value="pago">Pago</option>
+      </select>
+
+      <input id="movPercentual" type="number" placeholder="% da dívida (ex: 50)">
+
+      <button onclick="salvarMovimentacao()">Salvar</button>
+    </section>
+
+    <!-- CARTEIRAS -->
+    <section id="carteiras" class="tab hidden">
+      <h2>Carteiras</h2>
+      <input id="carteiraNome" placeholder="Nome da carteira">
+      <button onclick="salvarCarteira()">Salvar</button>
+      <ul id="listaCarteiras"></ul>
+    </section>
+
+    <!-- PESSOAS -->
+    <section id="pessoas" class="tab hidden">
+      <h2>Pessoas</h2>
+      <input id="pessoaNome" placeholder="Nome da pessoa">
+      <button onclick="salvarPessoa()">Salvar</button>
+      <ul id="listaPessoas"></ul>
+    </section>
+
   </div>
 </div>
 
-<!-- APP.JS SEM MODULE -->
 <script src="app.js"></script>
-
 </body>
 </html>
