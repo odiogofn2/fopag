@@ -1,425 +1,90 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<meta charset="UTF-8">
-<title>Financeiro v2.4</title>
-<style>
-:root {
-  --bg: #f2f4f8;
-  --card: #ffffff;
-  --primary: #2563eb;
-  --primary-hover: #1e40af;
-  --text: #111827;
-  --muted: #6b7280;
-  --border: #e5e7eb;
-  --success: #16a34a;
-  --danger: #dc2626;
-  --radius: 10px;
-}
-
-* {
-  box-sizing: border-box;
-}
-
-body {
-  margin: 0;
-  padding: 30px;
-  font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-  background: var(--bg);
-  color: var(--text);
-}
-
-h2 {
-  margin-bottom: 25px;
-  font-size: 28px;
-  font-weight: 600;
-}
-
-h3 {
-  margin: 0 0 15px 0;
-  font-size: 18px;
-  font-weight: 600;
-}
-
-section {
-  background: var(--card);
-  border-radius: var(--radius);
-  padding: 20px;
-  margin-bottom: 25px;
-  box-shadow: 0 6px 18px rgba(0,0,0,0.06);
-}
-
-#app {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 25px;
-}
-
-#app section {
-  margin-bottom: 0;
-}
-
-#app section:nth-child(1) {
-  grid-column: span 2;
-}
-
-input,
-select {
-  width: 100%;
-  padding: 10px 12px;
-  margin-bottom: 12px;
-  border-radius: 8px;
-  border: 1px solid var(--border);
-  font-size: 14px;
-  background: #fff;
-}
-
-input:focus,
-select:focus {
-  outline: none;
-  border-color: var(--primary);
-}
-
-button {
-  width: 100%;
-  padding: 10px 12px;
-  border-radius: 8px;
-  border: none;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  background: var(--primary);
-  color: #fff;
-  transition: background 0.2s;
-}
-
-button:hover {
-  background: var(--primary-hover);
-}
-
-ul {
-  list-style: none;
-  padding: 0;
-  margin: 10px 0 0 0;
-}
-
-ul li {
-  padding: 8px 10px;
-  background: #f9fafb;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  margin-bottom: 6px;
-  font-size: 14px;
-}
-
-.hidden {
-  display: none;
-}
-
-/* DASHBOARD */
-#saldo,
-#meDevem {
-  font-size: 22px;
-  font-weight: 600;
-}
-
-#saldo {
-  color: var(--success);
-}
-
-#meDevem {
-  color: var(--danger);
-}
-
-/* TABLE */
-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 14px;
-}
-
-th {
-  text-align: left;
-  background: #f9fafb;
-  color: var(--muted);
-  font-weight: 500;
-  padding: 10px;
-  border-bottom: 1px solid var(--border);
-}
-
-td {
-  padding: 10px;
-  border-bottom: 1px solid var(--border);
-}
-
-tbody tr:hover {
-  background: #f9fafb;
-}
-
-/* AUTH */
-#auth {
-  max-width: 380px;
-}
-
-/* LABEL */
-label {
-  font-size: 13px;
-  color: var(--muted);
-  display: block;
-  margin-bottom: 8px;
-}
-</style>
+  <meta charset="UTF-8" />
+  <title>Financeiro v2.7</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
-
 <body>
 
-<h2>Financeiro Pessoal v2.4</h2>
-
-<!-- AUTH -->
-<section id="auth">
+<div id="auth">
+  <h2>Financeiro</h2>
   <input id="email" placeholder="Email">
   <input id="password" type="password" placeholder="Senha">
-  <button onclick="login()">Login</button>
-  <button onclick="registerUser()">Registrar</button>
-</section>
+  <button onclick="login()">Entrar</button>
+  <button onclick="register()">Cadastrar</button>
+</div>
 
-<!-- APP -->
 <div id="app" class="hidden">
 
-<!-- DASHBOARD -->
-<section>
-  <h3>Dashboard</h3>
-  <p><b>Saldo real:</b> R$ <span id="saldo">0.00</span></p>
-  <p><b>Total que me devem:</b> R$ <span id="meDevem">0.00</span></p>
-</section>
+  <nav>
+    <button onclick="showTab('dashboard')">Dashboard</button>
+    <button onclick="showTab('movimentacoes')">Movimentações</button>
+    <button onclick="showTab('carteiras')">Carteiras</button>
+    <button onclick="showTab('pessoas')">Pessoas</button>
+    <button onclick="logout()">Sair</button>
+  </nav>
 
-<!-- CARTEIRAS -->
-<section>
-  <h3>Carteiras / Cartões</h3>
-  <input id="wallet_name" placeholder="Nome da carteira/cartão">
-  <select id="wallet_type">
-    <option value="wallet">Carteira / Conta</option>
-    <option value="credit_card">Cartão</option>
-  </select>
-  <input id="wallet_limit" type="number" placeholder="Limite (opcional)">
-  <button onclick="addWallet()">Salvar</button>
-  <ul id="wallets"></ul>
-</section>
+  <!-- DASHBOARD -->
+  <section id="dashboard" class="tab">
+    <h2>Resumo Mensal</h2>
+    <select id="mes"></select>
+    <select id="ano"></select>
+    <div id="resumo"></div>
+  </section>
 
-<!-- PESSOAS -->
-<section>
-  <h3>Pessoas</h3>
-  <input id="person_name" placeholder="Nome">
-  <button onclick="addPerson()">Adicionar</button>
-  <ul id="people"></ul>
-</section>
+  <!-- MOVIMENTAÇÕES -->
+  <section id="movimentacoes" class="tab hidden">
+    <h2>Nova Movimentação</h2>
 
-<!-- MOVIMENTAÇÃO -->
-<section>
-  <h3>Nova Movimentação</h3>
+    <input id="descricao" placeholder="Descrição">
+    <input id="valor" type="number" placeholder="Valor total">
 
-  <input id="desc" placeholder="Descrição">
-  <input id="amount" type="number" placeholder="Valor">
+    <select id="carteira"></select>
 
-  <select id="type">
-    <option value="expense">Despesa</option>
-    <option value="income">Receita</option>
-  </select>
+    <select id="parcelas">
+      <option value="1">À vista</option>
+      <option value="2">2x</option>
+      <option value="3">3x</option>
+      <option value="4">4x</option>
+      <option value="6">6x</option>
+      <option value="12">12x</option>
+    </select>
 
-  <select id="wallet"></select>
+    <select id="responsavel">
+      <option value="eu">Minha</option>
+      <option value="outra">Outra pessoa</option>
+      <option value="dividida">Dividida</option>
+    </select>
 
-  <select id="owner_type" onchange="ownerChange()">
-    <option value="me">Minha</option>
-    <option value="other">Outra pessoa</option>
-    <option value="shared">Dividida</option>
-  </select>
+    <select id="pessoa"></select>
 
-  <select id="person" class="hidden"></select>
-  <input id="split" type="number" class="hidden" placeholder="Qtd pessoas">
+    <label>
+      <input type="checkbox" id="pago"> Pessoa já pagou
+    </label>
 
-  <label id="paidLabel" class="hidden">
-    <input type="checkbox" id="paid" onchange="paidChange()"> Já me pagou
-  </label>
+    <button onclick="salvarMovimentacao()">Salvar</button>
+  </section>
 
-  <input id="paid_value" type="number" class="hidden" placeholder="Valor pago">
+  <!-- CARTEIRAS -->
+  <section id="carteiras" class="tab hidden">
+    <h2>Carteiras</h2>
+    <input id="novaCarteira" placeholder="Nome da carteira">
+    <button onclick="addCarteira()">Adicionar</button>
+    <ul id="listaCarteiras"></ul>
+  </section>
 
-  <button onclick="saveTransaction()">Salvar</button>
-</section>
-
-<!-- TRANSAÇÕES -->
-<section>
-  <h3>Movimentações</h3>
-  <table>
-    <thead>
-      <tr>
-        <th>Descrição</th>
-        <th>Valor</th>
-        <th>Minha Parte</th>
-      </tr>
-    </thead>
-    <tbody id="transactions"></tbody>
-  </table>
-</section>
+  <!-- PESSOAS -->
+  <section id="pessoas" class="tab hidden">
+    <h2>Pessoas</h2>
+    <input id="novaPessoa" placeholder="Nome">
+    <button onclick="addPessoa()">Adicionar</button>
+    <ul id="listaPessoas"></ul>
+  </section>
 
 </div>
 
-<!-- SUPABASE -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-<script>
-/* ========= SUPABASE (UMA ÚNICA VEZ) ========= */
-window.supabaseClient = window.supabase.createClient(
-  "https://rbxadmxxbrhgvbgcclxa.supabase.co",
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJieGFkbXh4YnJoZ3ZiZ2NjbHhhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc2MTQ2MjAsImV4cCI6MjA4MzE5MDYyMH0.AI0_5k8t26J_Vu2WEBMB7lI8mzJDisV5bvKTAv42SjE"
-);
-</script>
-
-<script>
-/* ========= AUTH ========= */
-async function login() {
-  const { error } = await supabaseClient.auth.signInWithPassword({
-    email: email.value,
-    password: password.value
-  });
-  if (error) {
-    alert(error.message);
-  } else {
-    startApp();
-  }
-}
-
-async function registerUser() {
-  const { error } = await supabaseClient.auth.signUp({
-    email: email.value,
-    password: password.value
-  });
-  if (error) alert(error.message);
-  else alert("Usuário criado com sucesso");
-}
-
-function startApp() {
-  auth.classList.add("hidden");
-  app.classList.remove("hidden");
-  loadAll();
-}
-
-/* ========= UI ========= */
-function ownerChange() {
-  person.classList.toggle("hidden", owner_type.value === "me");
-  split.classList.toggle("hidden", owner_type.value !== "shared");
-  paidLabel.classList.toggle("hidden", owner_type.value !== "other");
-  paid_value.classList.add("hidden");
-  paid.checked = false;
-}
-
-function paidChange() {
-  paid_value.classList.toggle("hidden", !paid.checked);
-}
-
-/* ========= LOAD ========= */
-async function loadAll() {
-  await loadWallets();
-  await loadPeople();
-  await loadTransactions();
-}
-
-async function loadWallets() {
-  const { data } = await supabaseClient.from("wallets").select("*");
-  wallet.innerHTML = "";
-  wallets.innerHTML = "";
-  data.forEach(w => {
-    wallet.innerHTML += `<option value="${w.id}">${w.name}</option>`;
-    wallets.innerHTML += `<li>${w.name}</li>`;
-  });
-}
-
-async function loadPeople() {
-  const { data } = await supabaseClient.from("people").select("*");
-  person.innerHTML = "";
-  people.innerHTML = "";
-  data.forEach(p => {
-    person.innerHTML += `<option value="${p.id}">${p.name}</option>`;
-    people.innerHTML += `<li>${p.name}</li>`;
-  });
-}
-
-/* ========= CRUD ========= */
-async function addWallet() {
-  await supabaseClient.from("wallets").insert({
-    name: wallet_name.value,
-    type: wallet_type.value,
-    limit: wallet_limit.value || null
-  });
-  wallet_name.value = "";
-  wallet_limit.value = "";
-  loadWallets();
-}
-
-async function addPerson() {
-  await supabaseClient.from("people").insert({ name: person_name.value });
-  person_name.value = "";
-  loadPeople();
-}
-
-async function saveTransaction() {
-  await supabaseClient.from("transactions").insert({
-    description: desc.value,
-    amount: amount.value,
-    type: type.value,
-    wallet_id: wallet.value,
-    owner_type: owner_type.value,
-    person_id: owner_type.value !== "me" ? person.value : null,
-    split_count: owner_type.value === "shared" ? split.value : null,
-    paid_by_other: paid.checked,
-    other_paid_amount: paid_value.value || 0
-  });
-
-  desc.value = amount.value = "";
-  loadTransactions();
-}
-
-/* ========= DASHBOARD ========= */
-async function loadTransactions() {
-  const { data } = await supabaseClient.from("transactions").select("*");
-  transactions.innerHTML = "";
-
-  let saldo = 0;
-  let meDevem = 0;
-
-  data.forEach(t => {
-    let minhaParte = t.amount;
-
-    if (t.owner_type === "shared" && t.split_count) {
-      minhaParte = t.amount / t.split_count;
-    }
-
-    if (t.owner_type === "other") {
-      minhaParte = t.paid_by_other ? 0 : (t.amount - t.other_paid_amount);
-      meDevem += minhaParte;
-    }
-
-    saldo += t.type === "income" ? minhaParte : -minhaParte;
-
-    transactions.innerHTML += `
-      <tr>
-        <td>${t.description}</td>
-        <td>R$ ${Number(t.amount).toFixed(2)}</td>
-        <td>R$ ${Number(minhaParte).toFixed(2)}</td>
-      </tr>`;
-  });
-
-  saldoEl.innerText = saldo.toFixed(2);
-  meDevemEl.innerText = meDevem.toFixed(2);
-}
-
-/* ========= AUTO LOGIN ========= */
-const saldoEl = document.getElementById("saldo");
-const meDevemEl = document.getElementById("meDevem");
-
-supabaseClient.auth.getSession().then(({ data }) => {
-  if (data.session) startApp();
-});
-</script>
-
+<script src="app.js"></script>
 </body>
 </html>
