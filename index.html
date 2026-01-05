@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Controle Financeiro</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f4f6f8;
+      margin: 0;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 1000px;
+      margin: auto;
+      background: #fff;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+    }
+
+    h1, h2 {
+      margin-top: 0;
+    }
+
+    .resumo {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px,1fr));
+      gap: 15px;
+      margin-bottom: 25px;
+    }
+
+    .card {
+      padding: 15px;
+      border-radius: 8px;
+      background: #fafafa;
+      border: 1px solid #e0e0e0;
+    }
+
+    .card strong {
+      display: block;
+      font-size: 1.1rem;
+      margin-bottom: 6px;
+    }
+
+    form {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px,1fr));
+      gap: 12px;
+      margin-bottom: 25px;
+    }
+
+    input, select, button {
+      padding: 10px;
+      font-size: 14px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+    }
+
+    button {
+      background: #1976d2;
+      color: #fff;
+      border: none;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #125ea8;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    th, td {
+      padding: 10px;
+      border-bottom: 1px solid #ddd;
+      font-size: 14px;
+      text-align: left;
+    }
+
+    th {
+      background: #f0f0f0;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <h1>💰 Controle Financeiro</h1>
+
+  <!-- RESUMO -->
+  <div class="resumo">
+    <div class="card">
+      <strong>Receitas</strong>
+      <span id="total-income">R$ 0,00</span>
+    </div>
+    <div class="card">
+      <strong>Despesas</strong>
+      <span id="total-expense">R$ 0,00</span>
+    </div>
+    <div class="card">
+      <strong>Saldo</strong>
+      <span id="total-balance">R$ 0,00</span>
+    </div>
+  </div>
+
+  <!-- FORM -->
+  <h2>Novo lançamento</h2>
+  <form id="form">
+    <input type="date" id="date" required>
+    <input type="text" id="description" placeholder="Descrição" required>
+
+    <select id="type" required>
+      <option value="income">Receita</option>
+      <option value="expense">Despesa</option>
+    </select>
+
+    <input type="number" id="amount" step="0.01" placeholder="Valor" required>
+
+    <select id="account" required></select>
+    <select id="category" required></select>
+
+    <button type="submit">Salvar</button>
+  </form>
+
+  <!-- TABELA -->
+  <h2>Lançamentos do mês</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Data</th>
+        <th>Descrição</th>
+        <th>Tipo</th>
+        <th>Categoria</th>
+        <th>Conta</th>
+        <th>Valor</th>
+      </tr>
+    </thead>
+    <tbody id="table-body"></tbody>
+  </table>
+</div>
+
+<script>
+  // =============================
+  // SUPABASE CONFIG (SEU PROJETO)
+  // =============================
+  const supabase = supabasejs.createClient(
+    "https://rbxadmxxbrhgvbgcclxa.supabase.co",
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJieGFkbXh4YnJoZ3ZiZ2NjbHhhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc2MTQ2MjAsImV4cCI6MjA4MzE5MDYyMH0.AI0_5k8t26J_Vu2WEBMB7lI8mzJDisV5bvKTAv42SjE"
+  );
+
+  const form = document.getElementById("form");
+  const tbody = document.getElementById("table-body");
+
+  const totalIncome = document.getElementById("total-income");
+  const totalExpense = document.getElementById("total-expense");
+  const totalBalance = document.getElementById("total-balance");
+
+  document.getElementById("date").value =
+    new Date().toISOString().split("T")[0];
+
+  function moeda(v) {
+    return Number(v).toLocaleString("pt-BR", {
+      style: "currency",
+      currency: "BRL"
+    });
+  }
+
+  async function carregarAccounts() {
+    const { data } = await supabase.from("accounts").select("*").order("name");
+    const sel = document.getElementById("account");
+    sel.innerHTML = "";
+    data.forEach(a => {
+      sel.innerHTML += `<option value="${a.id}">${a.name}</option>`;
+    });
+  }
+
+  async function carregarCategories() {
+    const { data } = await supabase.from("categories").select("*").order("name");
+    const sel = document.getElementById("category");
+    sel.innerHTML = "";
+    data.forEach(c => {
+      sel.innerHTML += `<option value="${c.id}">${c.name}</option>`;
+    });
+  }
+
+  async function carregarTransacoes() {
+    const inicioMes = new Date();
+    inicioMes.setDate(1);
+
+    const { data } = await supabase
+      .from("transactions")
+      .select("date, description, type, amount, accounts(name), categories(name)")
+      .gte("date", inicioMes.toISOString().split("T")[0])
+      .order("date", { ascending: false });
+
+    tbody.innerHTML = "";
+
+    let income = 0;
+    let expense = 0;
+
+    data.forEach(t => {
+      if (t.type === "income") income += Number(t.amount);
+      else expense += Number(t.amount);
+
+      tbody.innerHTML += `
+        <tr>
+          <td>${t.date}</td>
+          <td>${t.description}</td>
+          <td>${t.type === "income" ? "Receita" : "Despesa"}</td>
+          <td>${t.categories?.name || "-"}</td>
+          <td>${t.accounts?.name || "-"}</td>
+          <td>${moeda(t.amount)}</td>
+        </tr>
+      `;
+    });
+
+    totalIncome.textContent = moeda(income);
+    totalExpense.textContent = moeda(expense);
+    totalBalance.textContent = moeda(income - expense);
+  }
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    await supabase.from("transactions").insert({
+      date: document.getElementById("date").value,
+      description: document.getElementById("description").value,
+      type: document.getElementById("type").value,
+      amount: document.getElementById("amount").value,
+      account_id: document.getElementById("account").value,
+      category_id: document.getElementById("category").value
+    });
+
+    form.reset();
+    document.getElementById("date").value =
+      new Date().toISOString().split("T")[0];
+
+    carregarTransacoes();
+  });
+
+  // INIT
+  carregarAccounts();
+  carregarCategories();
+  carregarTransacoes();
+</script>
+
+</body>
+</html>
