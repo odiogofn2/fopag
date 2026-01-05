@@ -1,38 +1,44 @@
-const { createClient } = supabase;
-const supa = createClient(
+// =====================
+// SUPABASE
+// =====================
+const supabase = window.supabase.createClient(
   "https://rbxadmxxbrhgvbgcclxa.supabase.co",
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJieGFkbXh4YnJoZ3ZiZ2NjbHhhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc2MTQ2MjAsImV4cCI6MjA4MzE5MDYyMH0.AI0_5k8t26J_Vu2WEBMB7lI8mzJDisV5bvKTAv42SjE"
 );
 
-let userId = null;
+// =====================
+// LOGIN
+// =====================
+document.getElementById("btnLogin").addEventListener("click", login);
 
 async function login() {
-  const { data, error } = await supa.auth.signInWithPassword({
-    email: email.value,
-    password: password.value
-  });
-  if (error) return alert(error.message);
-  userId = data.user.id;
-  init();
+  const email = document.getElementById("email").value;
+  const password = document.getElementById("password").value;
+  const msg = document.getElementById("loginMsg");
+
+  msg.innerText = "Entrando...";
+
+  const { error } = await supabase.auth.signInWithPassword({ email, password });
+
+  if (error) {
+    msg.innerText = error.message;
+    return;
+  }
+
+  iniciarSistema();
 }
 
-async function register() {
-  const { error } = await supa.auth.signUp({
-    email: email.value,
-    password: password.value
-  });
-  if (error) alert(error.message);
-  else alert("Conta criada");
-}
-
-function logout() {
-  supa.auth.signOut();
+async function logout() {
+  await supabase.auth.signOut();
   location.reload();
 }
 
-async function init() {
-  auth.classList.add("hidden");
-  app.classList.remove("hidden");
+// =====================
+// SISTEMA
+// =====================
+async function iniciarSistema() {
+  document.getElementById("loginView").classList.add("hidden");
+  document.getElementById("systemView").classList.remove("hidden");
 
   carregarCarteiras();
   carregarPessoas();
@@ -44,87 +50,75 @@ function showTab(id) {
   document.getElementById(id).classList.remove("hidden");
 }
 
-/* DASHBOARD */
-async function carregarDashboard() {
-  const { data } = await supa.from("movimentacoes").select("*");
-  let total = 0, pago = 0;
-
-  data.forEach(m => {
-    total += m.valor;
-    if (m.pago) pago += m.valor;
-  });
-
-  document.getElementById("total").innerText = `R$ ${total.toFixed(2)}`;
-  document.getElementById("pago").innerText = `R$ ${pago.toFixed(2)}`;
-  document.getElementById("aberto").innerText = `R$ ${(total - pago).toFixed(2)}`;
-}
-
-/* MOVIMENTAÇÕES */
-async function salvarMovimentacao() {
-  const total = Number(valor.value);
-  const qtd = Number(parcelas.value);
-  const valorParcela = total / qtd;
-
-  const hoje = new Date();
-
-  for (let i = 0; i < qtd; i++) {
-    const d = new Date(hoje.getFullYear(), hoje.getMonth() + i, 1);
-
-    await supa.from("movimentacoes").insert({
-      user_id: userId,
-      descricao: descricao.value,
-      tipo: tipo.value,
-      valor: valorParcela,
-      mes: d.getMonth() + 1,
-      ano: d.getFullYear(),
-      carteira_id: carteira.value || null,
-      pessoa_id: pessoa.value || null,
-      pago: pago.checked
-    });
-  }
-
-  alert("Movimentação salva");
-  carregarDashboard();
-}
-
-/* CARTEIRAS */
-async function carregarCarteiras() {
-  const { data } = await supa.from("carteiras").select("*").order("nome");
-  carteira.innerHTML = `<option value="">Selecione</option>`;
-  listaCarteiras.innerHTML = "";
-  data.forEach(c => {
-    carteira.innerHTML += `<option value="${c.id}">${c.nome}</option>`;
-    listaCarteiras.innerHTML += `<li>${c.nome} (${c.tipo})</li>`;
-  });
-}
-
+// =====================
+// CARTEIRAS
+// =====================
 async function salvarCarteira() {
-  await supa.from("carteiras").insert({
-    user_id: userId,
-    nome: novaCarteira.value,
-    tipo: tipoCarteira.value
-  });
-  novaCarteira.value = "";
+  const nome = carteiraNome.value;
+
+  await supabase.from("carteiras").insert({ nome });
   carregarCarteiras();
 }
 
-/* PESSOAS */
-async function carregarPessoas() {
-  const { data } = await supa.from("pessoas").select("*").order("nome");
-  pessoa.innerHTML = `<option value="">Selecione</option>`;
-  listaPessoas.innerHTML = "";
-  data.forEach(p => {
-    pessoa.innerHTML += `<option value="${p.id}">${p.nome}</option>`;
-    listaPessoas.innerHTML += `<li>${p.nome}</li>`;
+async function carregarCarteiras() {
+  const { data } = await supabase.from("carteiras").select("*").order("nome");
+  listaCarteiras.innerHTML = "";
+  movCarteira.innerHTML = "";
+
+  data.forEach(c => {
+    listaCarteiras.innerHTML += `<li>${c.nome}</li>`;
+    movCarteira.innerHTML += `<option value="${c.id}">${c.nome}</option>`;
   });
 }
 
+// =====================
+// PESSOAS
+// =====================
 async function salvarPessoa() {
-  await supa.from("pessoas").insert({
-    user_id: userId,
-    nome: novaPessoa.value
-  });
-  novaPessoa.value = "";
+  const nome = pessoaNome.value;
+
+  await supabase.from("pessoas").insert({ nome });
   carregarPessoas();
 }
 
+async function carregarPessoas() {
+  const { data } = await supabase.from("pessoas").select("*").order("nome");
+  listaPessoas.innerHTML = "";
+  movPessoa.innerHTML = "";
+
+  data.forEach(p => {
+    listaPessoas.innerHTML += `<li>${p.nome}</li>`;
+    movPessoa.innerHTML += `<option value="${p.id}">${p.nome}</option>`;
+  });
+}
+
+// =====================
+// MOVIMENTAÇÕES
+// =====================
+async function salvarMovimentacao() {
+  const parcelas = Number(movParcelas.value);
+  const valor = Number(movValor.value) / parcelas;
+
+  for (let i = 0; i < parcelas; i++) {
+    await supabase.from("movimentacoes").insert({
+      descricao: movDesc.value,
+      valor,
+      mes: Number(movMes.value) + i,
+      ano: Number(movAno.value),
+      carteira_id: movCarteira.value,
+      pessoa_id: movPessoa.value
+    });
+  }
+
+  alert("Movimentação salva!");
+  carregarDashboard();
+}
+
+// =====================
+// DASHBOARD
+// =====================
+async function carregarDashboard() {
+  const { data } = await supabase.from("movimentacoes").select("valor");
+  const total = data.reduce((s, m) => s + Number(m.valor), 0);
+  dashboardResumo.innerText = `Total registrado: R$ ${total.toFixed(2)}`;
+}

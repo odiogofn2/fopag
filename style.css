@@ -1,79 +1,64 @@
 body {
   margin: 0;
-  font-family: 'Segoe UI', sans-serif;
-  background: #f4f6f8;
-}
-
-.hidden { display: none; }
-
-.auth-container {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 100vh;
-}
-
-.card {
-  background: white;
-  padding: 30px;
-  border-radius: 10px;
-  width: 320px;
-}
-
-label {
-  font-size: 14px;
-  margin-top: 10px;
-  display: block;
-}
-
-input, select, button {
-  width: 100%;
-  padding: 10px;
-  margin-top: 5px;
-}
-
-button {
-  margin-top: 15px;
-  background: #2563eb;
-  color: white;
-  border: none;
-  border-radius: 6px;
-}
-
-button.secondary {
-  background: #64748b;
+  background: #0f172a;
+  font-family: Inter, Arial, sans-serif;
+  color: #e5e7eb;
 }
 
 #app {
   display: flex;
-  height: 100vh;
+  justify-content: center;
+  padding: 40px;
 }
 
-aside {
-  width: 220px;
-  background: #1e293b;
-  color: white;
-  padding: 20px;
-}
-
-aside button {
-  width: 100%;
-  margin-bottom: 10px;
-}
-
-main {
-  flex: 1;
+.card {
+  background: #020617;
   padding: 30px;
+  border-radius: 12px;
+  width: 320px;
 }
 
-.grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 20px;
+input, select {
+  width: 100%;
+  padding: 10px;
+  margin: 6px 0;
+  border-radius: 6px;
+  border: none;
 }
 
-.box {
-  background: white;
+button {
+  width: 100%;
+  padding: 10px;
+  background: #2563eb;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  margin-top: 10px;
+  cursor: pointer;
+}
+
+button:hover {
+  background: #1d4ed8;
+}
+
+.hidden {
+  display: none;
+}
+
+.tabs {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.tabs button {
+  width: auto;
+  padding: 8px 14px;
+}
+
+.tab {
+  background: #020617;
   padding: 20px;
-  border-radius: 10px;
+  border-radius: 12px;
+  min-width: 400px;
 }

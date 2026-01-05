@@ -1,114 +1,75 @@
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <title>Financeiro v4.0</title>
-  <link rel="stylesheet" href="style.css">
+  <title>Financeiro 4.1</title>
+
+  <!-- Supabase -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script defer src="app.js"></script>
+
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-<div class="auth-container" id="auth">
-  <div class="card">
-    <h2>Controle Financeiro</h2>
-    <p>Acesse sua conta</p>
+<div id="app">
 
-    <label>Email</label>
-    <input id="email" type="email">
-
-    <label>Senha</label>
-    <input id="password" type="password">
-
-    <button onclick="login()">Entrar</button>
-    <button class="secondary" onclick="register()">Criar Conta</button>
+  <!-- LOGIN -->
+  <div id="loginView" class="card">
+    <h2>Entrar</h2>
+    <input id="email" type="email" placeholder="Email">
+    <input id="password" type="password" placeholder="Senha">
+    <button id="btnLogin">Entrar</button>
+    <p id="loginMsg"></p>
   </div>
-</div>
 
-<div id="app" class="hidden">
+  <!-- SISTEMA -->
+  <div id="systemView" class="hidden">
 
-  <aside>
-    <h3>Financeiro</h3>
-    <button onclick="showTab('dashboard')">Dashboard</button>
-    <button onclick="showTab('movimentacoes')">Movimentações</button>
-    <button onclick="showTab('carteiras')">Carteiras</button>
-    <button onclick="showTab('pessoas')">Pessoas</button>
-    <button onclick="logout()">Sair</button>
-  </aside>
+    <nav class="tabs">
+      <button onclick="showTab('dashboard')">Dashboard</button>
+      <button onclick="showTab('movimentacoes')">Movimentações</button>
+      <button onclick="showTab('carteiras')">Carteiras</button>
+      <button onclick="showTab('pessoas')">Pessoas</button>
+      <button onclick="logout()">Sair</button>
+    </nav>
 
-  <main>
-    <!-- DASHBOARD -->
     <section id="dashboard" class="tab">
       <h2>Resumo Mensal</h2>
-      <div class="grid">
-        <div class="box"><span>Total</span><strong id="total"></strong></div>
-        <div class="box"><span>Pago</span><strong id="pago"></strong></div>
-        <div class="box"><span>Em Aberto</span><strong id="aberto"></strong></div>
-      </div>
+      <div id="dashboardResumo"></div>
     </section>
 
-    <!-- MOVIMENTAÇÕES -->
     <section id="movimentacoes" class="tab hidden">
       <h2>Nova Movimentação</h2>
 
-      <label>Descrição</label>
-      <input id="descricao">
+      <input id="movDesc" placeholder="Descrição">
+      <input id="movValor" type="number" placeholder="Valor">
+      <input id="movParcelas" type="number" placeholder="Parcelas (1 = à vista)">
+      <input id="movMes" type="number" placeholder="Mês (1-12)">
+      <input id="movAno" type="number" placeholder="Ano">
 
-      <label>Tipo</label>
-      <select id="tipo">
-        <option value="saida">Despesa</option>
-        <option value="entrada">Receita</option>
-      </select>
-
-      <label>Valor total</label>
-      <input id="valor" type="number">
-
-      <label>Parcelas</label>
-      <input id="parcelas" type="number" value="1" min="1">
-
-      <label>Carteira usada</label>
-      <select id="carteira"></select>
-
-      <label>Relacionado a alguém?</label>
-      <select id="pessoa"></select>
-
-      <label>
-        <input type="checkbox" id="pago"> Já foi pago
-      </label>
+      <select id="movPessoa"></select>
+      <select id="movCarteira"></select>
 
       <button onclick="salvarMovimentacao()">Salvar</button>
     </section>
 
-    <!-- CARTEIRAS -->
     <section id="carteiras" class="tab hidden">
       <h2>Carteiras</h2>
-
-      <label>Nome</label>
-      <input id="novaCarteira">
-
-      <label>Tipo</label>
-      <select id="tipoCarteira">
-        <option value="dinheiro">Dinheiro</option>
-        <option value="cartao">Cartão</option>
-        <option value="banco">Conta Bancária</option>
-      </select>
-
-      <button onclick="salvarCarteira()">Adicionar</button>
+      <input id="carteiraNome" placeholder="Nome da carteira">
+      <button onclick="salvarCarteira()">Salvar</button>
       <ul id="listaCarteiras"></ul>
     </section>
 
-    <!-- PESSOAS -->
     <section id="pessoas" class="tab hidden">
       <h2>Pessoas</h2>
-
-      <label>Nome</label>
-      <input id="novaPessoa">
-
-      <button onclick="salvarPessoa()">Adicionar</button>
+      <input id="pessoaNome" placeholder="Nome da pessoa">
+      <button onclick="salvarPessoa()">Salvar</button>
       <ul id="listaPessoas"></ul>
     </section>
-  </main>
 
+  </div>
 </div>
+
+<script src="app.js"></script>
 </body>
 </html>
