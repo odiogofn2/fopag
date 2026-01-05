@@ -1,255 +1,253 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <title>Controle Financeiro</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta charset="UTF-8">
+<title>Controle Financeiro v2.3</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #f4f6f8;
-      margin: 0;
-      padding: 20px;
-    }
-
-    .container {
-      max-width: 1000px;
-      margin: auto;
-      background: #fff;
-      padding: 20px;
-      border-radius: 10px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.08);
-    }
-
-    h1, h2 {
-      margin-top: 0;
-    }
-
-    .resumo {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px,1fr));
-      gap: 15px;
-      margin-bottom: 25px;
-    }
-
-    .card {
-      padding: 15px;
-      border-radius: 8px;
-      background: #fafafa;
-      border: 1px solid #e0e0e0;
-    }
-
-    .card strong {
-      display: block;
-      font-size: 1.1rem;
-      margin-bottom: 6px;
-    }
-
-    form {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px,1fr));
-      gap: 12px;
-      margin-bottom: 25px;
-    }
-
-    input, select, button {
-      padding: 10px;
-      font-size: 14px;
-      border-radius: 6px;
-      border: 1px solid #ccc;
-    }
-
-    button {
-      background: #1976d2;
-      color: #fff;
-      border: none;
-      cursor: pointer;
-    }
-
-    button:hover {
-      background: #125ea8;
-    }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-    }
-
-    th, td {
-      padding: 10px;
-      border-bottom: 1px solid #ddd;
-      font-size: 14px;
-      text-align: left;
-    }
-
-    th {
-      background: #f0f0f0;
-    }
-  </style>
+<style>
+body { font-family: Arial; background:#f4f6f8; padding:20px; }
+.container { background:#fff; padding:20px; border-radius:10px; max-width:1200px; margin:auto; }
+.hidden { display:none; }
+input, select, button { padding:8px; border-radius:6px; border:1px solid #ccc; }
+button { background:#1976d2; color:#fff; border:none; cursor:pointer; }
+button.red { background:#d32f2f; }
+button.gray { background:#777; }
+.grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:10px; }
+.card { background:#fafafa; padding:12px; border-radius:8px; border:1px solid #eee; }
+.resumo { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:10px; margin:15px 0; }
+table { width:100%; border-collapse:collapse; margin-top:10px; }
+th,td { padding:8px; border-bottom:1px solid #ddd; font-size:14px; }
+.actions button { margin-right:5px; }
+</style>
 </head>
+
 <body>
 
-<div class="container">
-  <h1>💰 Controle Financeiro</h1>
+<!-- LOGIN -->
+<div class="container" id="login">
+  <h2>Login</h2>
+  <input id="email" placeholder="Email"><br><br>
+  <input id="password" type="password" placeholder="Senha"><br><br>
+  <button onclick="login()">Entrar</button>
+  <button class="gray" onclick="register()">Cadastrar</button>
+</div>
 
-  <!-- RESUMO -->
-  <div class="resumo">
-    <div class="card">
-      <strong>Receitas</strong>
-      <span id="total-income">R$ 0,00</span>
-    </div>
-    <div class="card">
-      <strong>Despesas</strong>
-      <span id="total-expense">R$ 0,00</span>
-    </div>
-    <div class="card">
-      <strong>Saldo</strong>
-      <span id="total-balance">R$ 0,00</span>
-    </div>
-  </div>
+<!-- APP -->
+<div class="container hidden" id="app">
 
-  <!-- FORM -->
-  <h2>Novo lançamento</h2>
-  <form id="form">
-    <input type="date" id="date" required>
-    <input type="text" id="description" placeholder="Descrição" required>
+<h1>💰 Controle Financeiro v2.3</h1>
+<button class="gray" onclick="logout()">Sair</button>
 
-    <select id="type" required>
-      <option value="income">Receita</option>
-      <option value="expense">Despesa</option>
-    </select>
+<!-- RESUMO -->
+<div class="resumo">
+  <div class="card"><strong>Saldo real</strong><span id="saldo">R$ 0,00</span></div>
+  <div class="card"><strong>Minhas despesas</strong><span id="minhas">R$ 0,00</span></div>
+  <div class="card"><strong>Me devem</strong><span id="devem">R$ 0,00</span></div>
+</div>
 
-    <input type="number" id="amount" step="0.01" placeholder="Valor" required>
+<!-- CADASTROS -->
+<h2>Cadastros rápidos</h2>
+<div class="grid">
+  <input id="newAccount" placeholder="Nova carteira/cartão">
+  <button onclick="addAccount()">Adicionar</button>
 
-    <select id="account" required></select>
-    <select id="category" required></select>
+  <input id="newPerson" placeholder="Nova pessoa">
+  <button onclick="addPerson()">Adicionar</button>
+</div>
 
-    <button type="submit">Salvar</button>
-  </form>
+<!-- FORM MOVIMENTAÇÃO -->
+<h2>Novo lançamento</h2>
+<form id="form" class="grid">
+  <input type="date" id="date" required>
+  <input id="description" placeholder="Descrição" required>
 
-  <!-- TABELA -->
-  <h2>Lançamentos do mês</h2>
-  <table>
-    <thead>
-      <tr>
-        <th>Data</th>
-        <th>Descrição</th>
-        <th>Tipo</th>
-        <th>Categoria</th>
-        <th>Conta</th>
-        <th>Valor</th>
-      </tr>
-    </thead>
-    <tbody id="table-body"></tbody>
-  </table>
+  <select id="type">
+    <option value="expense">Despesa</option>
+    <option value="income">Receita</option>
+  </select>
+
+  <input type="number" id="amount" step="0.01" placeholder="Valor" required>
+
+  <select id="account"></select>
+
+  <select id="owner_type">
+    <option value="me">Minha</option>
+    <option value="other">Outra pessoa</option>
+    <option value="shared">Dividida</option>
+  </select>
+
+  <select id="person" class="hidden"></select>
+  <input id="split_count" type="number" min="1" placeholder="Qtd pessoas" class="hidden">
+
+  <label class="hidden">
+    <input type="checkbox" id="paid_by_other"> Já me pagou
+  </label>
+
+  <input type="number" id="other_paid_amount" step="0.01"
+         placeholder="Valor pago" class="hidden">
+
+  <button type="submit">Salvar</button>
+</form>
+
+<!-- LISTA -->
+<h2>Movimentações</h2>
+<table>
+<thead>
+<tr>
+  <th>Data</th><th>Descrição</th><th>Carteira</th>
+  <th>Responsável</th><th>Valor</th><th>Impacto real</th><th>Ações</th>
+</tr>
+</thead>
+<tbody id="tbody"></tbody>
+</table>
+
 </div>
 
 <script>
-  // =============================
-  // SUPABASE CONFIG (SEU PROJETO)
-  // =============================
-  const supabase = supabasejs.createClient(
-    "https://rbxadmxxbrhgvbgcclxa.supabase.co",
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJieGFkbXh4YnJoZ3ZiZ2NjbHhhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc2MTQ2MjAsImV4cCI6MjA4MzE5MDYyMH0.AI0_5k8t26J_Vu2WEBMB7lI8mzJDisV5bvKTAv42SjE"
-  );
+const supabase = supabasejs.createClient(
+  "https://rbxadmxxbrhgvbgcclxa.supabase.co",
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJieGFkbXh4YnJoZ3ZiZ2NjbHhhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc2MTQ2MjAsImV4cCI6MjA4MzE5MDYyMH0.AI0_5k8t26J_Vu2WEBMB7lI8mzJDisV5bvKTAv42SjE"
+);
 
-  const form = document.getElementById("form");
-  const tbody = document.getElementById("table-body");
+const $ = id => document.getElementById(id);
+let editId = null;
 
-  const totalIncome = document.getElementById("total-income");
-  const totalExpense = document.getElementById("total-expense");
-  const totalBalance = document.getElementById("total-balance");
+/* AUTH */
+async function login(){ await supabase.auth.signInWithPassword({email:email.value,password:password.value}); }
+async function register(){ await supabase.auth.signUp({email:email.value,password:password.value}); }
+async function logout(){ await supabase.auth.signOut(); }
 
-  document.getElementById("date").value =
-    new Date().toISOString().split("T")[0];
+supabase.auth.onAuthStateChange((_,s)=>{
+  login.classList.toggle("hidden",!!s);
+  app.classList.toggle("hidden",!s);
+  if(s) init();
+});
 
-  function moeda(v) {
-    return Number(v).toLocaleString("pt-BR", {
-      style: "currency",
-      currency: "BRL"
-    });
-  }
+/* HELPERS */
+const moeda=v=>Number(v).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
 
-  async function carregarAccounts() {
-    const { data } = await supabase.from("accounts").select("*").order("name");
-    const sel = document.getElementById("account");
-    sel.innerHTML = "";
-    data.forEach(a => {
-      sel.innerHTML += `<option value="${a.id}">${a.name}</option>`;
-    });
-  }
+/* INIT */
+async function init(){
+  date.value=new Date().toISOString().split("T")[0];
+  await loadAccounts();
+  await loadPeople();
+  await loadTransactions();
+}
 
-  async function carregarCategories() {
-    const { data } = await supabase.from("categories").select("*").order("name");
-    const sel = document.getElementById("category");
-    sel.innerHTML = "";
-    data.forEach(c => {
-      sel.innerHTML += `<option value="${c.id}">${c.name}</option>`;
-    });
-  }
+/* CADASTROS */
+async function addAccount(){
+  if(!newAccount.value) return;
+  await supabase.from("accounts").insert({name:newAccount.value});
+  newAccount.value="";
+  loadAccounts();
+}
 
-  async function carregarTransacoes() {
-    const inicioMes = new Date();
-    inicioMes.setDate(1);
+async function addPerson(){
+  if(!newPerson.value) return;
+  await supabase.from("people").insert({name:newPerson.value});
+  newPerson.value="";
+  loadPeople();
+}
 
-    const { data } = await supabase
-      .from("transactions")
-      .select("date, description, type, amount, accounts(name), categories(name)")
-      .gte("date", inicioMes.toISOString().split("T")[0])
-      .order("date", { ascending: false });
+async function loadAccounts(){
+  const r=await supabase.from("accounts").select("*").order("name");
+  account.innerHTML=r.data.map(a=>`<option value="${a.id}">${a.name}</option>`).join("");
+}
 
-    tbody.innerHTML = "";
+async function loadPeople(){
+  const r=await supabase.from("people").select("*").order("name");
+  person.innerHTML=r.data.map(p=>`<option value="${p.id}">${p.name}</option>`).join("");
+}
 
-    let income = 0;
-    let expense = 0;
+/* OWNER TYPE UI */
+owner_type.onchange=()=>{
+  person.classList.toggle("hidden",owner_type.value==="me");
+  split_count.classList.toggle("hidden",owner_type.value!=="shared");
+  paid_by_other.parentElement.classList.toggle("hidden",owner_type.value!=="other");
+  other_paid_amount.classList.add("hidden");
+};
+paid_by_other.onchange=()=>{
+  other_paid_amount.classList.toggle("hidden",!paid_by_other.checked);
+};
 
-    data.forEach(t => {
-      if (t.type === "income") income += Number(t.amount);
-      else expense += Number(t.amount);
+/* TRANSACTIONS */
+form.onsubmit=async e=>{
+  e.preventDefault();
+  const payload={
+    date:date.value,
+    description:description.value,
+    type:type.value,
+    amount:amount.value,
+    account_id:account.value,
+    owner_type:owner_type.value,
+    person_id:owner_type.value!=="me"?person.value:null,
+    split_count:owner_type.value==="shared"?split_count.value:null,
+    paid_by_other:paid_by_other.checked,
+    other_paid_amount:other_paid_amount.value||0
+  };
+  editId
+    ? await supabase.from("transactions").update(payload).eq("id",editId)
+    : await supabase.from("transactions").insert(payload);
+  form.reset(); editId=null;
+  date.value=new Date().toISOString().split("T")[0];
+  loadTransactions();
+};
 
-      tbody.innerHTML += `
-        <tr>
-          <td>${t.date}</td>
-          <td>${t.description}</td>
-          <td>${t.type === "income" ? "Receita" : "Despesa"}</td>
-          <td>${t.categories?.name || "-"}</td>
-          <td>${t.accounts?.name || "-"}</td>
-          <td>${moeda(t.amount)}</td>
-        </tr>
-      `;
-    });
+async function loadTransactions(){
+  const r=await supabase
+    .from("transactions")
+    .select("*,accounts(name),people(name)")
+    .order("date",{ascending:false});
 
-    totalIncome.textContent = moeda(income);
-    totalExpense.textContent = moeda(expense);
-    totalBalance.textContent = moeda(income - expense);
-  }
+  tbody.innerHTML="";
+  let saldo=0, minhas=0, devem=0;
 
-  form.addEventListener("submit", async (e) => {
-    e.preventDefault();
+  r.data.forEach(t=>{
+    let impacto=0;
+    if(t.owner_type==="me") impacto=t.amount;
+    if(t.owner_type==="shared") impacto=t.amount/t.split_count;
+    if(t.owner_type==="other"){
+      impacto=t.paid_by_other?0:(t.amount-t.other_paid_amount);
+      devem+=impacto;
+    }
+    if(t.type==="expense") saldo-=impacto;
+    else saldo+=impacto;
+    if(t.owner_type==="me") minhas+=impacto;
 
-    await supabase.from("transactions").insert({
-      date: document.getElementById("date").value,
-      description: document.getElementById("description").value,
-      type: document.getElementById("type").value,
-      amount: document.getElementById("amount").value,
-      account_id: document.getElementById("account").value,
-      category_id: document.getElementById("category").value
-    });
-
-    form.reset();
-    document.getElementById("date").value =
-      new Date().toISOString().split("T")[0];
-
-    carregarTransacoes();
+    tbody.innerHTML+=`
+      <tr>
+        <td>${t.date}</td>
+        <td>${t.description}</td>
+        <td>${t.accounts?.name||""}</td>
+        <td>${t.owner_type==="me"?"Eu":t.people?.name}</td>
+        <td>${moeda(t.amount)}</td>
+        <td>${moeda(impacto)}</td>
+        <td class="actions">
+          <button onclick="edit('${t.id}')">Editar</button>
+          <button class="red" onclick="del('${t.id}')">Excluir</button>
+        </td>
+      </tr>`;
   });
 
-  // INIT
-  carregarAccounts();
-  carregarCategories();
-  carregarTransacoes();
+  saldo.textContent=moeda(saldo);
+  minhas.textContent=moeda(minhas);
+  devem.textContent=moeda(devem);
+}
+
+async function edit(id){
+  editId=id;
+  const r=await supabase.from("transactions").select("*").eq("id",id).single();
+  Object.entries(r.data).forEach(([k,v])=>$(k)&&( $(k).value=v ));
+}
+
+async function del(id){
+  if(confirm("Excluir?")){
+    await supabase.from("transactions").delete().eq("id",id);
+    loadTransactions();
+  }
+}
 </script>
 
 </body>
