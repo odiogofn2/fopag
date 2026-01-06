@@ -1,388 +1,500 @@
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="pt-BR">
 <head>
-<meta charset="utf-8"/>
-<title>Controle Financeiro – Diogo FN</title>
+<meta charset="UTF-8">
+<title>Controle Financeiro</title>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <style>
-body{
-  background:#f5f6fa;
-  font-family:system-ui;
+:root {
+  --bg:#f1f3f6;
+  --white:#ffffff;
+  --border:#e0e0e0;
+  --text:#2c3e50;
+  --muted:#7f8c8d;
 }
 
-.container{
-  width:95%;
-  max-width:1100px;
-  margin:auto;
-  background:white;
-  padding:16px;
-  border-radius:12px;
-  box-shadow:0 0 10px rgba(0,0,0,.08);
+* { box-sizing:border-box; }
+
+body {
+ margin:0;
+ font-family:'Segoe UI', Arial;
+ background:var(--bg);
+ color:var(--text);
 }
 
-.abas{
-  display:flex;
-  gap:6px;
-  border-bottom:1px solid #ddd;
-  margin-bottom:10px;
+.container {
+ width:92%;
+ max-width:1100px;
+ margin:15px auto;
 }
 
-.aba{
-  padding:8px 12px;
-  cursor:pointer;
-  border-radius:8px 8px 0 0;
+header {
+ font-size:22px;
+ font-weight:600;
+ margin:10px 0;
 }
 
-.ativa{
-  background:#fff;
-  border:1px solid #ddd;
-  border-bottom:none;
-  font-weight:600;
+/* ABAS */
+.tabs {
+ display:flex;
+ gap:4px;
 }
 
-.painel{ display:none }
-.show{ display:block }
-
-input,select{
-  width:100%;
-  padding:8px;
-  margin:4px 0;
-  border:1px solid #ccc;
-  border-radius:8px;
+.tab {
+ padding:8px 12px;
+ background:#e9ecf0;
+ cursor:pointer;
+ border-radius:10px 10px 0 0;
+ font-size:14px;
 }
 
-button{
-  padding:8px 14px;
-  border:none;
-  border-radius:8px;
-  cursor:pointer;
+.tab.active {
+ background:var(--white);
+ border:1px solid var(--border);
+ border-bottom:none;
+ font-weight:bold;
 }
 
-.grade{ display:grid; grid-template-columns:1fr 1fr; gap:8px }
-
-table{
-  width:100%;
-  border-collapse:collapse;
+.tabcontent {
+ display:none;
+ background:var(--white);
+ padding:12px;
+ border-radius:0 10px 10px 10px;
+ border:1px solid var(--border);
+ box-shadow:0 2px 6px rgba(0,0,0,.06);
+ margin-bottom:10px;
 }
 
-th,td{
-  padding:6px;
-  border-bottom:1px solid #eee;
-  text-align:left;
+.tabcontent.active { display:block; }
+
+/* CARDS */
+.card {
+ background:var(--white);
+ padding:10px;
+ margin:6px 0;
+ border-radius:14px;
+ border:1px solid var(--border);
 }
 
-.card{
-  background:#fafafa;
-  padding:8px;
-  border-radius:10px;
-  margin:4px 0;
+.row { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+.filtros { display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:6px; }
+
+input,select {
+ padding:8px;
+ border:1px solid var(--border);
+ border-radius:10px;
+ margin-bottom:6px;
+}
+
+button {
+ padding:8px;
+ border:none;
+ border-radius:10px;
+ cursor:pointer;
+ font-weight:bold;
+}
+
+table {
+ width:100%;
+ border-collapse:collapse;
+}
+
+th { background:#fafafa; }
+
+th,td {
+ border:1px solid var(--border);
+ padding:6px;
+ font-size:13px;
 }
 </style>
+
 </head>
 
 <body>
 <div class="container">
 
-<h2>Minhas Finanças – Controle Pessoal</h2>
+<header>💰 Controle das Minhas Finanças</header>
 
-<!-- ABAS -->
-<div class="abas">
- <div class="aba ativa" onclick="trocar('t1')" id="a1">Movimentação</div>
- <div class="aba" onclick="trocar('t2')" id="a2">Carteiras</div>
- <div class="aba" onclick="trocar('t3')" id="a3">Pessoas</div>
- <div class="aba" onclick="trocar('t4')" id="a4">Devedores</div>
+<div class="tabs">
+ <div class="tab active" onclick="abrirTab(0)">Carteiras</div>
+ <div class="tab" onclick="abrirTab(1)">Pessoas</div>
+ <div class="tab" onclick="abrirTab(2)">Movimentação</div>
+ <div class="tab" onclick="abrirTab(3)">Relatórios</div>
+ <div class="tab" onclick="abrirTab(4)">Quem me Deve</div>
 </div>
 
-<!-- TELA 1 – MOVIMENTAÇÃO -->
-<div class="painel show" id="t1">
+<!-- ABA CARTEIRAS -->
+<div class="tabcontent active">
 
- <div class="grade">
-  <div>
-   <label>Onde</label>
-   <input id="onde"/>
-  </div>
+<h3>Minhas Carteiras</h3>
+<div id="listaCarteiras"></div>
 
-  <div>
-   <label>Descrição</label>
-   <input id="descricao"/>
-  </div>
- </div>
+<h4>Nova carteira</h4>
 
- <div class="grade">
-  <div>
-   <label>Valor</label>
-   <input id="valor" type="number"/>
-  </div>
+<input id="nomeCarteira" placeholder="Nome da carteira">
 
-  <div>
-   <label>Carteira</label>
-   <select id="carteira"></select>
-  </div>
- </div>
+<div class="row">
+ <input id="saldoCarteira" placeholder="Saldo inicial" type="number">
 
- <label>Modo de pagamento</label>
- <select id="modo">
-  <option>pix</option>
-  <option>cartao</option>
-  <option>dinheiro</option>
+ <select id="tipoCarteira">
+  <option value="conta">Conta</option>
+  <option value="cartao">Cartão</option>
+  <option value="dinheiro">Dinheiro</option>
+  <option value="investimento">Investimento</option>
+  <option value="banca">Banca</option>
  </select>
+</div>
 
- <div class="grade">
-  <div>
-   <label>A vista?</label>
-   <select id="avista">
-     <option value="true">Sim</option>
-     <option value="false">Não</option>
-   </select>
-  </div>
+<div class="filtros">
+ <input id="limitePix" placeholder="Limite PIX" type="number">
+ <input id="limiteDinheiro" placeholder="Limite Dinheiro" type="number">
+ <input id="limiteCartao" placeholder="Limite Cartão" type="number">
+</div>
 
-  <div>
-   <label>Qtd parcelas</label>
-   <input id="parcelas" type="number" value="1"/>
-  </div>
- </div>
-
- <label>Dividido com alguém?</label>
- <select id="div">
-   <option value="false">Não</option>
-   <option value="true">Sim</option>
- </select>
-
- <label>Com quantas pessoas dividi?</label>
- <input id="qtdDiv" type="number" value="2"/>
-
- <label>Pessoa (se houver)</label>
- <select id="pessoa"></select>
-
- <label>Observação</label>
- <input id="obs"/>
-
- <button onclick="salvar()">Registrar</button>
-
- <hr/>
-
- <h3>Lista</h3>
- <div id="lista"></div>
+<button onclick="criarCarteira()">Cadastrar carteira</button>
 
 </div>
 
-<!-- TELA 2 – CARTEIRAS -->
-<div class="painel" id="t2">
 
- <h3>Cadastrar carteira</h3>
- <label>Nome</label>
- <input id="nomeCart"/>
+<!-- ABA PESSOAS -->
+<div class="tabcontent">
 
- <label>Limite PIX</label>
- <input id="limPix" type="number"/>
+<h3>Pessoas</h3>
+<div id="listaPessoas"></div>
 
- <label>Limite Dinheiro</label>
- <input id="limDin" type="number"/>
+<input id="nomePessoa" placeholder="Nome da pessoa">
 
- <label>Limite Cartão</label>
- <input id="limCard" type="number"/>
-
- <button onclick="salvarCart()">Cadastrar</button>
-
- <h3>Minhas contas fixas</h3>
- <ul>
-  <li>Banco do Brasil – BB</li>
-  <li>Caixa Econômica</li>
-  <li>Bet365</li>
-  <li>Carteira em dinheiro</li>
-  <li>Nubank crédito</li>
-  <li>Poupança</li>
-  <li>Trabalho – Prefeituras</li>
- </ul>
-
-</div>
-
-<!-- TELA 3 – PESSOAS -->
-<div class="painel" id="t3">
-
-<h3>Cadastro de Pessoas</h3>
-
-<label>Nome da pessoa</label>
-<input id="nomePessoa"/>
-
-<label>Tipo</label>
 <select id="tipoPessoa">
  <option value="amigo">Amigo</option>
  <option value="familia">Família</option>
- <option value="trabalho">Trabalho</option>
+ <option value="cliente">Cliente</option>
+ <option value="outro">Outro</option>
 </select>
 
-<button onclick="salvarPessoa()">Salvar Pessoa</button>
-
-<div id="listaPessoas"></div>
+<button onclick="criarPessoa()">Cadastrar pessoa</button>
 
 </div>
 
-<!-- TELA 4 – DEVEDORES -->
-<div class="painel" id="t4">
 
-<h3>Quanto foi dividido por carteira</h3>
+<!-- ABA MOVIMENTAÇÃO -->
+<div class="tabcontent">
 
-<label>Ano</label>
-<input id="fAno" type="number" value="2025"/>
+<h3>Incluir Movimentação</h3>
 
-<label>Mês</label>
-<input id="fMes" type="number" value="1"/>
+<input id="dataMov" type="datetime-local">
+<input id="ondeMov" placeholder="Onde foi">
+<input id="descMov" placeholder="Descrição">
+<input id="valorMov" type="number" placeholder="Valor">
 
-<button onclick="carregarDev()">Consultar</button>
+<select id="carteiraMov"></select>
 
-<h3>Total por carteira</h3>
-<div id="totCart"></div>
+<select id="modoPag">
+ <option value="pix">PIX</option>
+ <option value="cartao">Cartão</option>
+ <option value="dinheiro">Dinheiro</option>
+ <option value="transferencia">Transferência</option>
+</select>
 
-<table id="tabDev">
+<div class="row">
+ <select id="forma">
+  <option value="avista">À vista</option>
+  <option value="parcelado">Parcelado</option>
+ </select>
+
+ <input id="qtdParcelas" placeholder="Nº parcelas" type="number">
+</div>
+
+<select id="dividiu">
+ <option value="nao">Não dividi</option>
+ <option value="sim">Dividi com alguém</option>
+</select>
+
+<select id="outraPessoa">
+ <option value="">Despesa só minha</option>
+</select>
+
+<input id="qtdDivisao" type="number" placeholder="Qtd pessoas divisão (2=50%,3=33%)">
+
+<input id="obsMov" placeholder="Observação">
+
+<button onclick="incluirMov()">Registrar</button>
+
+</div>
+
+
+<!-- ABA RELATÓRIOS -->
+<div class="tabcontent">
+
+<h3>Relatório de Movimentações</h3>
+
+<button onclick="carregarMov()">Atualizar</button>
+
+<table>
+<thead>
+<tr>
+ <th>Data</th>
+ <th>Onde</th>
+ <th>Descrição</th>
+ <th>Valor</th>
+ <th>Pagamento</th>
+ <th>Carteira</th>
+ <th>À vista</th>
+ <th>Parcelado</th>
+ <th>Dividido</th>
+</tr>
+</thead>
+
+<tbody id="tabelaMov"></tbody>
+</table>
+
+<h4>Total por carteira do que foi dividido</h4>
+<div id="totalCarteiraDiv"></div>
+
+</div>
+
+
+<!-- ABA QUEM ME DEVE -->
+<div class="tabcontent">
+
+<h3>Quanto cada um me deve</h3>
+
+<div class="row">
+ <input id="fmes" placeholder="Mês" type="number">
+ <input id="fano" placeholder="Ano" type="number">
+</div>
+
+<button onclick="devedores()">Calcular</button>
+
+<table>
 <thead>
 <tr>
  <th>Pessoa</th>
  <th>Mês</th>
  <th>Ano</th>
- <th>Total Devido</th>
+ <th>Total devido</th>
 </tr>
 </thead>
-<tbody></tbody>
+
+<tbody id="tabDevedores"></tbody>
 </table>
 
 </div>
 
-</div>
 
 <script>
-// KEYS
+// ================= ABAS ==================
+function abrirTab(i) {
+ document.querySelectorAll('.tab').forEach((t,idx)=>
+   t.classList.toggle('active', idx===i)
+ );
+
+ document.querySelectorAll('.tabcontent').forEach((c,idx)=>
+   c.classList.toggle('active', idx===i)
+ );
+}
+
+window.abrirTab = abrirTab;
+
+// ============== SUPABASE ================
 const SUPABASE_URL = "https://kkecunfjxflmetsqczrt.supabase.co";
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtrZWN1bmZqeGZsbWV0c3FjenJ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc2NzMzNTEsImV4cCI6MjA4MzI0OTM1MX0.bzOf9CfUlMRYItyOV_e7w42vsbudaAQSF7cZUCUTE_A";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtrZWN1bmZqeGZsbWV0c3FjenJ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc2NzMzNTEsImV4cHMjM=";
 
-const sb = supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
-
-// controle abas
-function trocar(id){
- document.querySelectorAll('.aba').forEach(a=>a.classList.remove('ativa'));
- document.querySelectorAll('.painel').forEach(p=>p.classList.remove('show'));
-
- if(id==='t1')a1.classList.add('ativa');
- if(id==='t2')a2.classList.add('ativa');
- if(id==='t3')a3.classList.add('ativa');
- if(id==='t4')a4.classList.add('ativa');
-
- document.getElementById(id).classList.add('show');
-}
-
-// carregar combos
-async function carregarCombos(){
- let c = await sb.from('carteiras').select('*');
- carteira.innerHTML = c.data.map(x=>`<option value="${x.id}">${x.nome}</option>`).join('');
-
- let p = await sb.from('pessoas').select('*');
- pessoa.innerHTML = p.data.map(x=>`<option value="${x.id}">${x.nome}</option>`).join('');
-}
-
-carregarCombos();
-
-// salvar movimentação
-async function salvar(){
-
- const mov = {
-  data: new Date().toISOString(),
-  onde: onde.value,
-  descricao: descricao.value,
-  valor: valor.value,
-  carteira_id: carteira.value,
-  modo_pagamento: modo.value,
-  a_vista: avista.value==="true",
-  parcelado: parcelas.value>1,
-  parcelas: parcelas.value,
-  dividido: div.value==="true",
-  outra_pessoa_id: div.value==="true"? pessoa.value:null,
-  observacao: obs.value
- };
-
- await sb.from('movimentacoes').insert(mov);
- carregarLista();
-}
-
-// lista mov
-async function carregarLista(){
- let r = await sb.from('movimentacoes')
-   .select('*')
-   .order('data',{descending:true});
-
- lista.innerHTML = r.data.map(x=>
-  `<div class="card">
-    ${x.onde} – R$ ${x.valor}
-  </div>`).join('');
-}
-
-carregarLista();
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+window.db = db;
 
 
-// salvar pessoa CORRIGIDO
-async function salvarPessoa(){
+// ============== PESSOAS =================
+async function criarPessoa() {
+ await db.from("pessoas").insert({
+  nome:nomePessoa.value,
+  tipo:tipoPessoa.value
+ });
 
- const p = {
-  nome: nomePessoa.value,
-  tipo: tipoPessoa.value,
-  created_at: new Date().toISOString()
- };
-
- await sb.from('pessoas').insert(p);
+ nomePessoa.value="";
  carregarPessoas();
 }
 
+async function carregarPessoas() {
+ const { data } = await db.from("pessoas").select("*");
 
-// carregar pessoas
-async function carregarPessoas(){
- let r = await sb.from('pessoas').select('*');
- listaPessoas.innerHTML = r.data.map(x=>
-   `<div class="card">${x.nome} (${x.tipo})</div>`
- ).join('');
+ document.getElementById("listaPessoas").innerHTML =
+  data.map(p=> `<div class='card'>${p.nome} – ${p.tipo}</div>`).join("");
+
+ const opts =
+  data.map(p=> `<option value='${p.id}'>${p.nome}</option>`).join("");
+
+ document.getElementById("outraPessoa").innerHTML =
+  "<option value=''>Despesa só minha</option>"+opts;
 }
 
+window.carregarPessoas = carregarPessoas;
+
+
+// ============== CARTEIRAS ===============
+async function criarCarteira() {
+ await db.from("carteiras").insert({
+  nome:nomeCarteira.value,
+  saldo:parseFloat(saldoCarteira.value||0),
+  limite_pix:parseFloat(limitePix.value||0),
+  limite_dinheiro:parseFloat(limiteDinheiro.value||0),
+  limite_cartao:parseFloat(limiteCartao.value||0),
+  tipo:tipoCarteira.value
+ });
+
+ nomeCarteira.value="";
+ saldoCarteira.value="";
+ carregarCarteiras();
+}
+
+async function carregarCarteiras() {
+ const { data } = await db.from("carteiras").select("*");
+
+ document.getElementById("listaCarteiras").innerHTML =
+  data.map(c=> `<div class='card'>${c.nome}<br>Saldo: R$ ${c.saldo.toFixed(2)}</div>`).join("");
+
+ const opts =
+  data.map(c=> `<option value='${c.id}'>${c.nome}</option>`).join("");
+
+ document.getElementById("carteiraMov").innerHTML = opts;
+}
+
+window.carregarCarteiras = carregarCarteiras;
+
+
+// ============== MOVIMENTAÇÕES ===========
+async function incluirMov() {
+ const valor = parseFloat(valorMov.value||0);
+
+ await db.from("movimentacoes").insert({
+  data:dataMov.value,
+  onde:ondeMov.value,
+  descricao:descMov.value,
+  valor,
+  carteira_id:carteiraMov.value,
+  modo_pagamento:modoPag.value,
+  a_vista:forma.value==="avista",
+  parcelado:forma.value==="parcelado",
+  parcelas:parseInt(qtdParcelas.value||1),
+  outra_pessoa_id:outraPessoa.value||null,
+  dividido:dividiu.value==="sim",
+  qtd_divisao:parseInt(qtdDivisao.value||parseInt(qtdDivisao.value||1)),
+  observacao:obsMov.value||null
+ });
+
+ limparCampos();
+ carregarMov();
+}
+
+function limparCampos(){
+ valorMov.value="";
+ descMov.value="";
+ ondeMov.value="";
+ qtdParcelas.value="";
+ qtdDivisao.value="";
+}
+
+window.incluirMov = incluirMov;
+
+
+// ============== LISTA MOV ==============
+async function carregarMov() {
+ const { data } =
+  await db.from("movimentacoes")
+   .select("*, pessoas(nome), carteiras(nome)")
+   .order("data",{ ascending:false });
+
+ document.getElementById("tabelaMov").innerHTML =
+ data.map(m=>{
+  const d = new Date(m.data);
+
+  const parte = m.dividido && m.qtd_divisao>1
+   ? m.valor / m.qtd_divisao
+   : 0;
+
+  return `<tr>
+    <td>${d.toLocaleString()}</td>
+    <td>${m.onde}</td>
+    <td>${m.descricao}</td>
+    <td>R$ ${m.valor.toFixed(2)}</td>
+    <td>${m.modo_pagamento}</td>
+    <td>${m.carteiras?.nome||''}</td>
+    <td>${m.a_vista?'Sim':'Não'}</td>
+    <td>${m.parcelado?'Sim':'Não'}</td>
+    <td>${m.dividido?'Sim':'Não'}</td>
+  </tr>`;
+ }).join("");
+
+
+ // TOTAL POR CARTEIRA DO QUE FOI DIVIDIDO
+ const totalPorCarteira={};
+
+ data.filter(m=>m.dividido).forEach(m=>{
+   const nome = m.carteiras?.nome||'';
+
+   totalPorCarteira[nome] =
+    (totalPorCarteira[nome]||0) +
+    (m.qtd_divisao>1
+      ? m.valor/m.qtd_divisao
+      : m.valor/2);
+ });
+
+ document.getElementById("totalCarteiraDiv").innerHTML =
+  Object.entries(totalPorCarteira)
+   .map(([c,v])=> `<div class='card'>${c}: R$ ${v.toFixed(2)}</div>`)
+   .join("");
+}
+
+window.carregarMov = carregarMov;
+
+
+// ============== DEVEDORES ==============
+async function devedores(){
+
+ const { data } =
+  await db.from("movimentacoes")
+   .select("*, pessoas(nome)")
+   .eq("dividido", true);
+
+ const mes = fmes.value;
+ const ano = fano.value;
+
+ document.getElementById("tabDevedores").innerHTML =
+ data.filter(m=>{
+   const d = new Date(m.data);
+
+   const okMes = mes ? (d.getMonth()+1)==mes : true;
+   const okAno = ano ? d.getFullYear()==ano : true;
+
+   return okMes && okAno;
+ })
+ .map(m=>{
+   const d = new Date(m.data);
+
+   const parte =
+     m.qtd_divisao>1
+      ? m.valor/m.qtd_divisao
+      : m.valor/2;
+
+   return `<tr>
+     <td>${m.pessoas?.nome||''}</td>
+     <td>${d.getMonth()+1}</td>
+     <td>${d.getFullYear()}</td>
+     <td>R$ ${parte.toFixed(2)}</td>
+   </tr>`;
+ }).join("");
+}
+
+window.devedores = devedores;
+
+
+// ============== INIT ====================
 carregarPessoas();
+carregarCarteiras();
+carregarMov();
 
+</script>
 
-// SALVAR CARTEIRA
-async function salvarCart(){
-
- const cart = {
-  nome: nomeCart.value,
-  limite_pix: limPix.value,
-  limite_dinheiro: limDin.value,
-  limite_cartao: limCard.value,
-  outra_pessoa:false,
-  saldo_atual:0,
-  created_at:new Date().toISOString()
- };
-
- await sb.from('carteiras').insert(cart);
-}
-
-
-// CALCULO DEVEDORES
-async function carregarDev(){
-
- let ano = Number(fAno.value);
- let mes = Number(fMes.value);
-
- let r = await sb.rpc('calc_dev',{ano,mes});
-
-}
-
-
-// total por carteira dividido
-async function carregarTotCarteira(){
-
- const {data} = await sb
- .from('movimentacoes')
- .select('valor,carteira_id,dividido');
-
- const g = {};
-
- data.forEach(m=>{
-  if(!m.dividido)return;
-
-  if(!g[m.carteira_id])g[m.carteira_id]=0;
+</body>
+</html>
