@@ -2,43 +2,119 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <title>Controle Financeiro</title>
+  <title>Financeiro</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
 <div class="container">
 
-  <!-- LOGIN -->
+  <!-- Login -->
   <div id="login-area" class="card">
-    <h2>Entrar</h2>
+    <h2>Entrar no Sistema</h2>
 
-    <input
-      type="email"
-      id="email"
-      placeholder="Seu email"
-    />
+    <label> Email </label>
+    <input id="email" type="email" placeholder="Digite seu email">
 
-    <input
-      type="password"
-      id="password"
-      placeholder="Sua senha"
-    />
+    <label> Senha </label>
+    <input id="password" type="password" placeholder="Digite sua senha">
 
     <button onclick="login()">Entrar</button>
+
+    <button class="sec" onclick="irRegistro()">
+      Criar Conta
+    </button>
   </div>
 
-  <!-- APP -->
+
+  <!-- Registro -->
+  <div id="register-area" class="card hidden">
+    <h2>Criar Conta</h2>
+
+    <label>Email</label>
+    <input id="reg-email" type="email">
+
+    <label>Senha</label>
+    <input id="reg-pass" type="password">
+
+    <button onclick="registrar()">
+      Registrar
+    </button>
+
+    <button class="sec" onclick="voltarLogin()">
+      Voltar
+    </button>
+  </div>
+
+
+  <!-- App -->
   <div id="app-area" class="card hidden">
-    <h2>Sistema carregado</h2>
-    <p>Login realizado com sucesso.</p>
 
-    <button onclick="logout()">Sair</button>
+    <div class="tabs">
+      <button onclick="showTab('dashboard')">
+        Dashboard
+      </button>
+
+      <button onclick="showTab('carteiras')">
+        Carteiras
+      </button>
+    </div>
+
+
+    <!-- DASHBOARD -->
+    <div id="dashboard-tab">
+
+      <h2>Resumo Geral</h2>
+      <div id="dash"></div>
+
+      <hr>
+
+      <h3>Nova Carteira</h3>
+
+      <label>Nome</label>
+      <input id="nome">
+
+      <label>Tipo</label>
+      <select id="tipo">
+        <option value="conta">Conta</option>
+        <option value="cartao">Cartão</option>
+        <option value="dinheiro">Dinheiro</option>
+      </select>
+
+      <label>Limite</label>
+      <input id="limite" type="number">
+
+      <label>Saldo Inicial</label>
+      <input id="saldo" type="number">
+
+      <label>Observação</label>
+      <input id="obs">
+
+      <button onclick="salvarCarteira()">
+        Salvar Carteira
+      </button>
+
+      <hr>
+
+      <button onclick="logout()">
+        Sair
+      </button>
+
+    </div>
+
+
+    <!-- CARTEIRAS -->
+    <div id="carteiras-tab" class="hidden">
+
+      <h2>Minhas Carteiras</h2>
+      <div id="lista"></div>
+
+    </div>
+
   </div>
-
 </div>
 
-<!-- ORDEM CORRETA DOS SCRIPTS -->
+<!-- Script oficial do Supabase -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="app.js"></script>
 
