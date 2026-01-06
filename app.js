@@ -1,77 +1,24 @@
 console.log("app.js iniciado");
 
-/* ===========================
-   CONFIG
-=========================== */
 const SUPABASE_URL =
  "https://rbxadmxxbrhgvbgcclxa.supabase.co";
 
 const SUPABASE_ANON_KEY =
  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJieGFkbXh4YnJoZ3ZiZ2NjbHhhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc2MTQ2MjAsImV4cCI6MjA4MzE5MDYyMH0.AI0_5k8t26J_Vu2WEBMB7lI8mzJDisV5bvKTAv42SjE";
 
-
-/* ===========================
-   CLIENT
-=========================== */
 const supaClient =
  supabase.createClient(
   SUPABASE_URL,
   SUPABASE_ANON_KEY
-);
+ );
 
 
-/* ===========================
-   TELAS
-=========================== */
-function irRegistro() {
- document
-  .getElementById("login-area")
-  .classList.add("hidden");
+/* DEIXAR GLOBAL (CSS NAO SERÁ ALTERADO) */
+window.SUPABASE_URL =
+ SUPABASE_URL;
 
- document
-  .getElementById("register-area")
-  .classList.remove("hidden");
-}
-
-
-function voltarLogin() {
- document
-  .getElementById("register-area")
-  .classList.add("hidden");
-
- document
-  .getElementById("login-area")
-  .classList.remove("hidden");
-}
-
-
-/* ===========================
-   ABAS
-=========================== */
-function showTab(nome) {
-
- const dash =
-  document.getElementById(
-   "dashboard-tab"
-  );
-
- const cart =
-  document.getElementById(
-   "carteiras-tab"
-  );
-
-
- if (nome === "carteiras") {
-   cart.classList.remove("hidden");
-   dash.classList.add("hidden");
- } else {
-   dash.classList.remove("hidden");
-   cart.classList.add("hidden");
- }
-
- carregarCarteiras();
- carregarDashboard();
-}
+window.SUPABASE_ANON_KEY =
+ SUPABASE_ANON_KEY;
 
 
 /* ===========================
@@ -80,14 +27,20 @@ function showTab(nome) {
 async function login() {
 
  const email =
-  document.getElementById(
-   "email"
-  ).value.trim();
+  document
+   .getElementById("email")
+   .value.trim();
 
  const password =
-  document.getElementById(
-   "password"
-  ).value.trim();
+  document
+   .getElementById("password")
+   .value.trim();
+
+
+ if (!email || !password) {
+  alert("Preencha email e senha");
+  return;
+ }
 
 
  const { error } =
@@ -98,44 +51,16 @@ async function login() {
      password
    });
 
+
+
  if (error) {
   alert(error.message);
   return;
  }
+
 
  iniciarSistema();
-}
 
-
-async function registrar() {
-
- const email =
-  document.getElementById(
-   "reg-email"
-  ).value.trim();
-
- const password =
-  document.getElementById(
-   "reg-pass"
-  ).value.trim();
-
-
- const { error } =
-  await supaClient
-   .auth
-   .signUp({
-     email,
-     password
-   });
-
- if (error) {
-  alert(error.message);
-  return;
- }
-
- alert(
-  "Verifique seu email"
- );
 }
 
 
@@ -145,71 +70,74 @@ async function logout() {
 }
 
 
+
 /* ===========================
-   ESTADO
+   SISTEMA
 =========================== */
 async function iniciarSistema() {
 
- document
-  .getElementById("app-area")
-  .classList.remove("hidden");
 
- document
-  .getElementById("login-area")
-  .classList.add("hidden");
+ const loginArea =
+  document
+   .getElementById("login-area");
 
- carregarCarteiras();
- carregarDashboard();
-}
+ const appArea =
+  document
+   .getElementById("app-area");
 
 
-/* ===========================
-   DADOS
-=========================== */
-async function carregarCarteiras() {
-
- const user =
-  (await supaClient.auth.getUser())
-   .data.user;
-
- if (!user) return;
-
-
- const { data, error } =
-  await supaClient
-   .from("carteiras")
-   .select("*")
-   .order("nome",
-    { ascending: true });
-
-
- if (error) {
-  alert(error.message);
+ if (!loginArea || !appArea) {
+  alert("Erro interno de DOM");
   return;
  }
 
 
- const lista =
-  document.getElementById(
-   "lista"
-  );
+ loginArea.classList.add("hidden");
+ appArea.classList.remove("hidden");
 
- lista.innerHTML = "";
+}
 
 
- data.forEach(c => {
 
-  lista.innerHTML += `
+function showTab(nome) {
 
-   <div class="item">
-    <b>${c.nome}</b>
-    <br>Tipo: ${c.tipo}
-    <br>Saldo Inicial: ${c.saldo_inicial}
-    <br>Limite: ${c.limite}
-    <br>${c.observacao || ""}
-   </div><br>
-  `;
- });
+
+ const dash =
+  document
+   .getElementById(
+    "dashboard-tab"
+   );
+
+ const cart =
+  document
+   .getElementById(
+    "carteiras-tab"
+   );
+
+ const pes =
+  document
+   .getElementById(
+    "pessoas-tab"
+   );
+
+
+ if (nome==="carteiras"){
+   cart.classList.remove("hidden");
+   dash.classList.add("hidden");
+ } else {
+   dash.classList.remove("hidden");
+   cart.classList.add("hidden");
+ }
+
+
+}
+
+
+
+async function salvarCarteira() {
+ /* a tela já faz insert */
+ location.href =
+  "carteiras.html";
 }
 
 
@@ -236,32 +164,34 @@ async function carregarDashboard() {
 
 
  const dash =
-  document.getElementById(
-   "dash"
-  );
+  document
+   .getElementById(
+    "dash"
+   );
 
- dash.innerHTML = "";
+ if (!dash) return;
 
 
  let total = 0;
 
-
- data.forEach(c => {
-  total +=
-   Number(c.saldo_inicial || 0);
+ data.forEach(c=>{
+   total +=
+    Number(
+     c.saldo_inicial || 0
+    );
  });
 
 
+
  dash.innerHTML =
-  `<h3>Saldo Total das Carteiras: ${total}</h3>`;
+  `<h3>Saldo Total: ${total}</h3>`;
+
 }
 
 
-
-/* ===========================
-   AUTO RUN
-=========================== */
+/* AUTO INIT */
 (async ()=>{
+
 
  const { data } =
   await supaClient
@@ -269,8 +199,11 @@ async function carregarDashboard() {
    .getSession();
 
 
- if (data.session) {
+ if (data.session){
    iniciarSistema();
  }
 
+
 })();
+
+

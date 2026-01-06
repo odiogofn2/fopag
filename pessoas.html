@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="container">
+<div class="card">
+
+<h2>Cadastro de Pessoas</h2>
+
+<label>Nome da Pessoa</label>
+<input id="pessoa-nome" placeholder="Ex: Diogo, Esposa, João">
+
+
+<label>Tipo</label>
+<select id="pessoa-tipo">
+  <option value="eu">Eu (titular)</option>
+  <option value="esposa">Esposa</option>
+  <option value="terceiro">Terceiro</option>
+</select>
+
+
+<button onclick="salvarPessoa()">
+  Salvar Pessoa
+</button>
+
+<hr>
+
+<h3>Minhas Pessoas</h3>
+<div id="pessoas-lista"></div>
+
+</div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<script>
+const SUPABASE_URL =
+  parent.SUPABASE_URL;
+
+const SUPABASE_ANON_KEY =
+  parent.SUPABASE_ANON_KEY;
+
+const supa =
+ supabase.createClient(
+  SUPABASE_URL,
+  SUPABASE_ANON_KEY
+ );
+
+
+async function salvarPessoa() {
+
+ const user =
+  (await supa.auth.getUser())
+   .data.user;
+
+ if (!user) {
+  alert("Você precisa estar logado");
+  return;
+ }
+
+
+ const nome =
+  document
+   .getElementById("pessoa-nome")
+   .value.trim();
+
+
+ const tipo =
+  document
+   .getElementById("pessoa-tipo")
+   .value;
+
+
+ if (!nome) {
+  alert("Informe o nome da pessoa");
+  return;
+ }
+
+
+ const { error } =
+  await supa
+   .from("pessoas")
+   .insert({
+     nome,
+     tipo,
+     user_id: user.id
+   });
+
+
+ if (error) {
+  alert(error.message);
+  return;
+ }
+
+ alert("Pessoa salva com sucesso");
+ carregarPessoas();
+}
+
+
+
+async function carregarPessoas() {
+
+ const user =
+  (await supa.auth.getUser())
+   .data.user;
+
+ if (!user) return;
+
+
+ const { data, error } =
+  await supa
+   .from("pessoas")
+   .select("*")
+   .order("nome",
+     { ascending: true });
+
+
+ if (error) {
+  alert(error.message);
+  return;
+ }
+
+
+ const lista =
+  document
+   .getElementById(
+    "pessoas-lista"
+   );
+
+
+ lista.innerHTML = "";
+
+
+ data.forEach(p => {
+
+  lista.innerHTML += `
+   <div class="item">
+     <b>${p.nome}</b>
+     <br>Tipo: ${p.tipo}
+   </div><br>
+  `;
+ });
+
+}
+
+
+carregarPessoas();
+</script>
+
+</body>
+</html>
