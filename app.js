@@ -1,209 +1,173 @@
-console.log("app.js iniciado");
+console.log("Sistema carregado");
 
-const SUPABASE_URL =
- "https://rbxadmxxbrhgvbgcclxa.supabase.co";
+/* ========= SUPABASE – DECLARADO UMA ÚNICA VEZ ========= */
+const supabaseClient = supabase.createClient(
+  "https://rbxadmxxbrhgvbgcclxa.supabase.co",
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJieGFkbXh4YnJoZ3ZiZ2NjbHhhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc2MTQ2MjAsImV4cCI6MjA4MzE5MDYyMH0.AI0_5k8t26J_Vu2WEBMB7lI8mzJDisV5bvKTAv42SjE"
+);
 
-const SUPABASE_ANON_KEY =
- "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJieGFkbXh4YnJoZ3ZiZ2NjbHhhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc2MTQ2MjAsImV4cCI6MjA4MzE5MDYyMH0.AI0_5k8t26J_Vu2WEBMB7lI8mzJDisV5bvKTAv42SjE";
-
-const supaClient =
- supabase.createClient(
-  SUPABASE_URL,
-  SUPABASE_ANON_KEY
- );
-
-
-/* DEIXAR GLOBAL (CSS NAO SERÁ ALTERADO) */
-window.SUPABASE_URL =
- SUPABASE_URL;
-
-window.SUPABASE_ANON_KEY =
- SUPABASE_ANON_KEY;
-
-
-/* ===========================
-   AUTH
-=========================== */
+/* ========= LOGIN ========= */
 async function login() {
 
- const email =
-  document
-   .getElementById("email")
-   .value.trim();
+  const email = document.getElementById("email");
+  const senha = document.getElementById("senha");
 
- const password =
-  document
-   .getElementById("password")
-   .value.trim();
+  if (!email || !senha) {
+    alert("Campos de login não encontrados na tela.");
+    return;
+  }
 
+  const { error, data } = await supabaseClient.auth.signInWithPassword({
+    email: email.value,
+    password: senha.value
+  });
 
- if (!email || !password) {
-  alert("Preencha email e senha");
-  return;
- }
+  if (error) {
+    alert("Erro no login: " + error.message);
+    return;
+  }
 
-
- const { error } =
-  await supaClient
-   .auth
-   .signInWithPassword({
-     email,
-     password
-   });
-
-
-
- if (error) {
-  alert(error.message);
-  return;
- }
-
-
- iniciarSistema();
-
+  console.log("Login realizado com sucesso.");
+  iniciarSistema();
 }
 
-
-async function logout() {
- await supaClient.auth.signOut();
- location.reload();
-}
-
-
-
-/* ===========================
-   SISTEMA
-=========================== */
+/* ========= INICIAR ========= */
 async function iniciarSistema() {
 
+  const dashboard = document.getElementById("dashboard");
 
- const loginArea =
-  document
-   .getElementById("login-area");
+  if (!dashboard) {
+    alert("Dashboard não encontrado no HTML.");
+    return;
+  }
 
- const appArea =
-  document
-   .getElementById("app-area");
+  dashboard.style.display = "block";
 
-
- if (!loginArea || !appArea) {
-  alert("Erro interno de DOM");
-  return;
- }
-
-
- loginArea.classList.add("hidden");
- appArea.classList.remove("hidden");
-
+  await carregarCarteiras();
+  await carregarPessoas();
+  await carregarDashboard();
 }
 
+/* ========= CARTEIRAS ========= */
+async function carregarCarteiras() {
 
+  const lista = document.getElementById("listaCarteiras");
+  lista.innerHTML = "";
 
-function showTab(nome) {
+  const { data, error } = await supabaseClient
+    .from("carteiras")
+    .select("*")
+    .order("nome", { ascending: true });
 
+  if (error) {
+    console.log(error);
+    return;
+  }
 
- const dash =
-  document
-   .getElementById(
-    "dashboard-tab"
-   );
-
- const cart =
-  document
-   .getElementById(
-    "carteiras-tab"
-   );
-
- const pes =
-  document
-   .getElementById(
-    "pessoas-tab"
-   );
-
-
- if (nome==="carteiras"){
-   cart.classList.remove("hidden");
-   dash.classList.add("hidden");
- } else {
-   dash.classList.remove("hidden");
-   cart.classList.add("hidden");
- }
-
-
+  (data || []).forEach(c => {
+    const li = document.createElement("li");
+    li.textContent = c.nome + " – " + (c.descricao || "");
+    lista.appendChild(li);
+  });
 }
 
+/* ========= PESSOAS ========= */
+async function carregarPessoas() {
 
+  const lista = document.getElementById("listaPessoas");
+  lista.innerHTML = "";
 
-async function salvarCarteira() {
- /* a tela já faz insert */
- location.href =
-  "carteiras.html";
+  const { data } = await supabaseClient
+    .from("pessoas")
+    .select("*")
+    .order("nome", { ascending: true });
+
+  (data || []).forEach(p => {
+    const li = document.createElement("li");
+    li.textContent = p.nome + " (" + p.tipo + ")";
+    lista.appendChild(li);
+  });
 }
 
-
-
+/* ========= DASHBOARD ========= */
 async function carregarDashboard() {
 
- const user =
-  (await supaClient.auth.getUser())
-   .data.user;
+  const tabela = document.getElementById("tabelaDash");
 
- if (!user) return;
+  const { data } = await supabaseClient
+    .from("movimentacoes")
+    .select("*");
 
+  tabela.innerHTML = "";
 
- const { data, error } =
-  await supa
-   .from("carteiras")
-   .select("*");
+  let totalEntrada = 0;
+  let totalSaida = 0;
 
+  (data || []).forEach(m => {
 
- if (error) {
-  alert(error.message);
-  return;
- }
+    if (m.tipo === "entrada") totalEntrada += Number(m.valor);
+    if (m.tipo === "saida") totalSaida += Number(m.valor);
 
+    const tr = document.createElement("tr");
 
- const dash =
-  document
-   .getElementById(
-    "dash"
-   );
+    tr.innerHTML = `
+      <td>${m.descricao}</td>
+      <td>${m.tipo}</td>
+      <td>${m.valor}</td>
+      <td>${m.parcela_atual}/${m.parcelas}</td>
+      <td>${m.mes}/${m.ano}</td>
+    `;
 
- if (!dash) return;
+    tabela.appendChild(tr);
+  });
 
-
- let total = 0;
-
- data.forEach(c=>{
-   total +=
-    Number(
-     c.saldo_inicial || 0
-    );
- });
-
-
-
- dash.innerHTML =
-  `<h3>Saldo Total: ${total}</h3>`;
-
+  document.getElementById("resumo").innerHTML = `
+    Entradas: ${totalEntrada}<br>
+    Saídas: ${totalSaida}<br>
+    Saldo: ${totalEntrada - totalSaida}
+  `;
 }
 
+/* ========= CADASTRAR MOVIMENTAÇÃO COM PARCELAMENTO AUTOMÁTICO ========= */
+async function cadastrarMovimentacao() {
 
-/* AUTO INIT */
-(async ()=>{
+  const desc = document.getElementById("mov_desc");
+  const pessoa = document.getElementById("mov_pessoa");
+  const carteira = document.getElementById("mov_carteira");
+  const valor = document.getElementById("mov_valor");
+  const tipo = document.getElementById("mov_tipo");
+  const parcelas = document.getElementById("mov_parcelas");
+  const dataRef = document.getElementById("mov_data");
 
+  if (!desc || !valor || !tipo || !dataRef) {
+    alert("Preencha: Descrição, Valor, Tipo e Data de Referência.");
+    return;
+  }
 
- const { data } =
-  await supaClient
-   .auth
-   .getSession();
+  const qtd = Number(parcelas.value || 1);
 
+  for (let i = 1; i <= qtd; i++) {
 
- if (data.session){
-   iniciarSistema();
- }
+    const baseDate = new Date(dataRef.value);
+    baseDate.setMonth(baseDate.getMonth() + (i - 1));
 
+    await supabaseClient.from("movimentacoes").insert({
+      descricao: desc.value,
 
-})();
+      pessoa_id: pessoa.value || null,
+      carteira_id: carteira.value || null,
 
+      valor: valor.value,
+      tipo: tipo.value,
 
+      data_referencia: baseDate.toISOString().substr(0,10),
+
+      parcelas: qtd,
+      parcela_atual: i
+    });
+  }
+
+  alert("Movimentação cadastrada em " + qtd + " vezes!");
+
+  await carregarDashboard();
+}
