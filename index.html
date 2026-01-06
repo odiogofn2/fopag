@@ -4,17 +4,13 @@
   <meta charset="UTF-8" />
   <title>Controle Interativo de Carteiras</title>
 
-  <!-- Supabase via ES Module -->
-  <script type="module">
-    import { createClient } from "https://unpkg.com/@supabase/supabase-js@2/dist/supabase-js.esm.js";
-
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/supabase.min.js"></script>
+    <script>
     const SUPABASE_URL = "https://kkecunfjxflmetsqczrt.supabase.co";
     const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtrZWN1bmZqeGZsbWV0c3FjenJ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc2NzMzNTEsImV4cCI6MjA4MzI0OTM1MX0.bzOf9CfUlMRYItyOV_e7w42vsbudaAQSF7cZUCUTE_A";
-
-    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
+    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     window.supabase = supabase;
-  </script>
+   </script>
 
   <style>
     body {
@@ -377,3 +373,4 @@ carregarMov();
 </script>
 </body>
 </html>
+
