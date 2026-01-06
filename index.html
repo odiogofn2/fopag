@@ -8,157 +8,92 @@
 
 <style>
 :root {
- --bg:#f1f3f6;
- --white:#ffffff;
- --border:#e3e7ed;
- --text:#2c3e50;
- --muted:#7f8c8d;
- --primary:#0099ff;
+  --bg:#f1f3f6;
+  --white:#ffffff;
+  --border:#e0e0e0;
+  --text:#2c3e50;
+  --muted:#7f8c8d;
 }
 
-*{ box-sizing:border-box }
+* { box-sizing:border-box; }
 
-body{
+body {
  margin:0;
  font-family:'Segoe UI', Arial;
  background:var(--bg);
- color:var(--text)
+ color:var(--text);
 }
 
-.container{
+.container {
  width:92%;
  max-width:1100px;
- margin:15px auto
+ margin:15px auto;
 }
 
-header{
+header {
  font-size:22px;
- font-weight:700;
- margin:10px 0
+ font-weight:600;
+ margin:10px 0;
 }
 
 /* ABAS */
-.tabs{
+.tabs {
  display:flex;
- gap:6px;
- flex-wrap:wrap
+ gap:4px;
 }
 
-.tab{
- padding:9px 13px;
- background:#e9ecf0;
+.tab {
+ padding:8px 12px;
+ background:#e9ecf8;
  cursor:pointer;
- border-radius:12px 12px 0 0;
+ border-radius:10px 10px 0 0;
  font-size:14px;
- transition:.2s
 }
 
-.tab.active{
+.tab.active {
  background:var(--white);
  border:1px solid var(--border);
  border-bottom:none;
- font-weight:bold
+ font-weight:bold;
 }
 
-.tabcontent{
+.tabcontent {
  display:none;
  background:var(--white);
- padding:14px;
- border-radius:0 14px 14px 14px;
- border:1px solid var(--border);
- box-shadow:0 3px 10px rgba(0,0,0,.07);
- margin-bottom:10px
-}
-
-.tabcontent.active{
- display:block
-}
-
-/* CARDS */
-.card{
- background:var(--white);
  padding:12px;
- margin:8px 0;
- border-radius:16px;
+ border-radius:0 10px 10px 10px;
  border:1px solid var(--border);
- box-shadow:0 2px 8px rgba(0,0,0,.05)
+ box-shadow:0 2px 6px rgba(0,0,0,.06);
+ margin-bottom:10px;
 }
 
-.row{
- display:grid;
- grid-template-columns:1fr 1fr;
- gap:10px
-}
+.tabcontent.active { display:block; }
 
-.filtros{
- display:grid;
- grid-template-columns:1fr 1fr 1fr;
- gap:8px
-}
-
-label{
- font-size:13px;
- font-weight:600;
- display:block;
- margin:4px 2px
-}
-
-input,select{
- width:100%;
- padding:9px;
+.card {
+ background:var(--white);
+ padding:10px;
+ margin:6px 0;
+ border-radius:14px;
  border:1px solid var(--border);
- border-radius:12px;
- margin-bottom:8px
 }
 
-button{
- background:var(--primary);
- color:#fff;
- padding:9px;
+.row { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+
+.filtros { display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; }
+
+input,select {
+ padding:8px;
+ border:1px solid var(--border);
+ border-radius:10px;
+ margin-bottom:6px;
+}
+
+button {
+ padding:8px;
  border:none;
- border-radius:12px;
+ border-radius:10px;
  cursor:pointer;
  font-weight:bold;
- width:100%;
- transition:.2s
-}
-
-button:hover{
- opacity:.9
-}
-
-.btn-outline{
- background:var(--white);
- border:1px solid var(--primary);
- color:var(--primary)
-}
-
-table{
- width:100%;
- border-collapse:collapse;
- margin-top:8px
-}
-
-th{
- background:#fafafa;
- text-align:left
-}
-
-th,td{
- border:1px solid var(--border);
- padding:8px;
- font-size:13px
-}
-
-/* RESUMOS */
-.resumos{
- display:grid;
- grid-template-columns:1fr 1fr;
- gap:10px
-}
-
-.deve{
- border-left:4px solid var(--primary)
 }
 </style>
 </head>
@@ -172,177 +107,117 @@ th,td{
  <div class="tab active" onclick="abrirTab(0)">Carteiras</div>
  <div class="tab" onclick="abrirTab(1)">Pessoas</div>
  <div class="tab" onclick="abrirTab(2)">Movimentação</div>
- <div class="tab" onclick="abrirTab(3)">Criar</div>
- <div class="tab" onclick="abrirTab(4)">Dívidas</div>
- <div class="tab" onclick="abrirTab(5)">Relatórios</div>
+ <div class="tab" onclick="abrirTab(3)">Relatórios</div>
 </div>
 
-<!-- CARTEIRAS -->
+<!-- ABA CARTEIRAS -->
 <div class="tabcontent active">
- <h3>Minhas Carteiras</h3>
- <div id="listaCarteiras"></div>
+
+<h3>Minhas Carteiras</h3>
+<div id="listaCarteiras"></div>
+
+<h4>Nova carteira</h4>
+
+<input id="nomeCarteira" placeholder="Nome da carteira">
+
+<div class="row">
+ <input id="saldoCarteira" placeholder="Saldo inicial" type="number">
+
+ <select id="tipoCarteira">
+  <option value="conta">Conta</option>
+  <option value="cartao">Cartão</option>
+  <option value="dinheiro">Dinheiro</option>
+  <option value="investimento">Investimento</option>
+  <option value="banca">Banca</option>
+ </select>
 </div>
 
-<!-- PESSOAS -->
-<div class="tabcontent">
- <h3>Pessoas</h3>
-
- <div class="card">
-  <label>Nome</label>
-  <input id="nomePessoa" placeholder="Maria, João...">
-
-  <label>Tipo</label>
-  <select id="tipoPessoa">
-   <option value="amigo">Amigo</option>
-   <option value="familia">Família</option>
-   <option value="cliente">Cliente</option>
-   <option value="trabalho">Trabalho</option>
-  </select>
-
-  <button onclick="criarPessoa()">Cadastrar</button>
- </div>
-
- <div id="listaPessoas"></div>
+<div class="filtros">
+ <input id="limitePix" placeholder="Limite PIX" type="number">
+ <input id="limiteDinheiro" placeholder="Limite Dinheiro" type="number">
+ <input id="limiteCartao" placeholder="Limite Cartão" type="number">
 </div>
 
-<!-- MOVIMENTAÇÃO -->
+<button onclick="criarCarteira()">Cadastrar carteira</button>
+
+</div>
+
+<!-- ABA PESSOAS -->
 <div class="tabcontent">
+
+<h3>Pessoas</h3>
+
+<input id="nomePessoa" placeholder="Nome da pessoa">
+
+<select id="tipoPessoa">
+ <option value="amigo">Amigo</option>
+ <option value="familia">Família</option>
+ <option value="cliente">Cliente</option>
+</select>
+
+<button onclick="carregarPessoas()">Cadastrar pessoa</button>
+
+<div id="listaPessoas"></div>
+
+</div>
+
+<!-- ABA MOVIMENTAÇÃO -->
+<div class="tabcontent">
+
 <h3>Incluir Movimentação</h3>
 
-<div class="card">
-
-<label>Data</label>
 <input id="dataMov" type="datetime-local">
 
-<label>Onde</label>
-<input id="ondeMov" placeholder="Supermercado">
+<input id="ondeMov" placeholder="Onde foi">
 
-<label>Descrição</label>
-<input id="descMov" placeholder="Compra de pão">
+<input id="descMov" placeholder="Descrição">
 
-<label>Valor</label>
-<input id="valorMov" type="number">
+<input id="valorMov" placeholder="Valor" type="number">
 
-<label>Carteira</label>
 <select id="carteiraMov"></select>
 
-<label>Pagamento</label>
 <select id="modoPag">
  <option value="pix">PIX</option>
  <option value="cartao">Cartão</option>
  <option value="dinheiro">Dinheiro</option>
- <option value="transferencia">Transferência</option>
 </select>
 
 <div class="row">
- <div>
-  <label>É à vista?</label>
-  <select id="avista">
-   <option value="sim">Sim</option>
-   <option value="nao">Não</option>
-  </select>
- </div>
+ <select id="forma">
+  <option value="avista">À vista</option>
+  <option value="parcelado">Parcelado</option>
+ </select>
 
- <div>
-  <label>Parcelas</label>
-  <input id="parcelas" type="number" value="1">
- </div>
+ <input id="qtdParcelas" placeholder="Nº parcelas" type="number">
 </div>
 
-<label>Dividido com alguém?</label>
-<select id="dividido">
- <option value="nao">Não</option>
- <option value="sim">Sim</option>
+<select id="dividiu">
+ <option value="nao">Não dividi</option>
+ <option value="sim">Dividi com alguém</option>
 </select>
 
-<label>Outra pessoa envolvida</label>
-<select id="outraPessoa"></select>
-
-<label>Observação</label>
-<input id="obsMov">
+<input id="obsMov" placeholder="Observação">
 
 <button onclick="incluirMov()">Registrar</button>
 
 </div>
-</div>
 
-<!-- CRIAR -->
-<div class="tabcontent">
-<h3>Criar Carteira</h3>
-
-<div class="card">
-<label>Nome</label>
-<input id="nomeCarteira">
-
-<label>Saldo inicial</label>
-<input id="saldoCarteira" type="number">
-
-<label>Tipo</label>
-<select id="tipoCarteira">
- <option value="conta">Conta Banco do Brasil</option>
- <option value="conta_caixa">Conta Caixa</option>
- <option value="banca">Bet365</option>
- <option value="dinheiro">Carteira em dinheiro</option>
- <option value="cartao">Cartão Nubank</option>
- <option value="poupanca">Poupança</option>
- <option value="trabalho">Trabalho – recebimentos</option>
-</select>
-
-<h4>Limites</h4>
-
-<div class="filtros">
- <input id="limitePix" placeholder="PIX">
- <input id="limiteDinheiro" placeholder="Dinheiro">
- <input id="limiteCartao" placeholder="Cartão">
-</div>
-
-<button onclick="criarCarteira()">Cadastrar</button>
-</div>
-
-</div>
-
-<!-- DÍVIDAS -->
+<!-- ABA RELATÓRIOS -->
 <div class="tabcontent">
 
-<h3>Quanto cada um me deve</h3>
+<h3>Relatório Geral</h3>
 
-<div class="card">
- <label>Mês</label>
- <input id="mesD" type="number">
-
- <label>Ano</label>
- <input id="anoD" type="number">
-
- <button onclick="carregarDeve()">Consultar</button>
-</div>
-
-<div id="telaDeve" class="resumos"></div>
-
-</div>
-
-<!-- RELATORIOS -->
-<div class="tabcontent">
-<h3>Movimentações</h3>
-<tbody id="tabelaMov"></tbody>
-</div>
-
-<!-- RELATÓRIOS GERAL -->
-<div class="tabcontent">
-
-<h3>Lista</h3>
-
-<button class="btn-outline" onclick="carregarMov()">Recarregar</button>
+<button onclick="carregarMov()">Filtrar</button>
 
 <table>
 <thead>
 <tr>
-<th>Data</th>
-<th>Onde</th>
-<th>Descrição</th>
-<th>Valor</th>
-<th>Pagamento</th>
-<th>Carteira</th>
-<th>Dividido</th>
+ <th>Data</th>
+ <th>Onde</th>
+ <th>Descrição</th>
+ <th>Valor</th>
+ <th>Pagamento</th>
+ <th>Carteira</th>
 </tr>
 </thead>
 
@@ -352,151 +227,127 @@ th,td{
 </div>
 
 <script>
-// =============== ABAS ===============
-function abrirTab(i){
- document.query.querySelectorAll('.tab').forEach((t,idx)=>
-  t.classList.toggle('active', idx===i)
+// ================= ABAS (CORRIGIDA) ==================
+function abrirTab(i) {
+ document.querySelectorAll('.tab').forEach((t,idx)=>
+   t.classList.toggle('active', idx===i)
  );
 
  document.querySelectorAll('.tabcontent').forEach((c,idx)=>
-  c.classList.toggle('active', idx===i)
+   c.classList.toggle('active', idx===i)
  );
 }
 
-// ============== SUPABASE ============
+// ============== SUPABASE ================
 const SUPABASE_URL = "https://kkecunfjxflmetsqczrt.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtrZWN1bmZqeGZsbWV0c3FjenJ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc2NzMzNTEsImV4cCI6MjA4MzI0OTM1MX0.bzOf9CfUlMRYItyOV_e7w42vsbudaAQSF7cZUCUTE_A";
 
-const sb = supabase.createClient(
- SUPABASE_URL,
- SUPABASE_KEY,
- {
-  auth:{ persistSession:false }
- }
-);
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY,{
+ auth:{ persistSession:false }
+});
 
-// ============== CRIAR PESSOA ========
-async function criarPessoa(){
- await sb.from('pessoas').insert({
-  nome:nomePessoa.value,
-  tipo:tipoPessoa.value
+// ============== PESSOAS =================
+async function carregarPessoas() {
+
+ const nome = document.getElementById("nomePessoa").value;
+ const tipo = document.getElementById("tipoPessoa").value;
+
+ await db.from("pessoas").insert({
+  nome,
+  tipo
  });
 
- nomePessoa.value="";
- carregarPessoas();
+ document.getElementById("nomePessoa").value="";
+ listarPessoas();
 }
 
-// ============== CARREGAR PESSOAS ====
-async function carregarPessoas(){
+async function listarPessoas() {
 
- const r = await sb.from('pessoas').select('*');
+ const r = await db.from("pessoas").select("*");
  const data = r.data||[];
 
- listaPessoas.innerHTML =
- data.map(p=>
-  `<div class='card'>${p.nome} — ${p.tipo}</div>`
- ).join('');
+ document.getElementById("listaPessoas").innerHTML =
+  data.map(p=> `<div class='card'>${p.nome} — tipo: ${p.tipo}</div>`).join("");
 
- outraPessoa.innerHTML =
- "<option value=''>Só minha</option>"+
- data.map(p=> `<option value='${p.id}'>${p.nome}</option>`).join("");
+ const opts =
+  data.map(p=> `<option value='${p.id}'>${p.nome}</option>`).join("");
+
+ document.getElementById("outraPessoa").innerHTML =
+  "<option value=''>Despesa só minha</option>"+opts;
 }
 
-// ============== CRIAR CARTEIRA ======
-async function criarCarteira(){
+// ============== CARTEIRAS ===============
+async function criarCarteira() {
 
- await sb.from('carteiras').insert({
-  nome:nomeCarteira.value,
-  saldo:parseFloat(saldoCarteira.value||0),
-  tipo:tipoCarteira.value,
-  limite_pix:parseFloat(limitePix.value||0),
-  limite_dinheiro:parseFloat(limiteDinheiro.value||0),
-  limite_cartao:parseFloat(limiteCartao.value||0)
+ await db.from("carteiras").insert({
+  nome:document.getElementById("nomeCarteira").value,
+  saldo:parseFloat(document.getElementById("saldoCarteira").value||0),
+  tipo:document.getElementById("tipoPessoa").value
  });
 
- carregarCarteiras();
+ listarCarteiras();
 }
 
-// ============== CARREGAR CARTEIRAS ==
-async function carregarCarteiras(){
- const r = await sb.from('carteiras').select('*');
+async function listarCarteiras() {
+
+ const r = await db.from("carteiras").select("*");
  const data = r.data||[];
 
- carteiraMov.innerHTML =
- data.map(c=> `<option value='${c.id}'>${c.nome}</option>`).join("");
+ document.getElementById("listaCarteiras").innerHTML =
+  data.map(c=> `<div class='card'>${c.nome} — saldo R$ ${c.saldo}</div>`).join("");
 
- listaCarteiras.innerHTML =
- data.map(c=> `<div class='card'>${c.nome} — saldo R$ ${c.saldo}</div>`).join("");
+ const opts =
+  data.map(c=> `<option value='${c.id}'>${c.nome}</option>`).join("");
+
+ document.getElementById("carteiraMov").innerHTML = opts;
 }
 
-// ============== INCLUIR MOV =========
-async function incluirMov(){
+// ============== MOVIMENTAÇÕES ===========
+async function incluirMov() {
 
  const valor = parseFloat(valorMov.value||0);
 
- await sb.from('movimentacoes').insert({
+ await db.from("movimentacoes").insert({
   data:dataMov.value,
   onde:ondeMov.value,
   descricao:descMov.value,
   valor,
   carteira_id:carteiraMov.value,
   modo_pagamento:modoPag.value,
-  a_vista:avista.value==="sim",
-  parcelado:dividido.value==="sim",
-  parcelas:parseFloat(parcelas.value||1),
-  dividido:dividido.value==="sim",
-  outra_pessoa_id:outraPessoa.value||null,
+  a_vista:forma.value==="avista",
+  parcelado:forma.value==="parcelado",
+  dividido:dividiu.value==="sim",
+  parcelas:parseFloat(qtdParcelas.value||1),
   observacao:obsMov.value||null
  });
 
+ listarCarteiras();
  carregarMov();
 }
 
-// ============== CARREGAR MOV ========
-async function carregarMov(){
+async function carregarMov() {
 
- const r =
-  await sb.from('movimentacoes')
-   .select('* , pessoas(nome) , carteiras(nome)')
-   .order('data', { ascending:false });
+ const r = await db.from("movimentacoes")
+  .select("* , pessoas(nome)")
+  .order("data",{ ascending:false });
 
  const data = r.data||[];
 
- tabelaMov.innerHTML =
+ document.getElementById("tabelaMov").innerHTML =
  data.map(m=>
   `<tr>
-   <td>${new Date(m.data).toLocaleString()}</td>
-   <td>${m.onde}</td>
-   <td>${m.descricao}</td>
-   <td>${m.valor}</td>
-   <td>${m.modo_pagamento}</td>
-   <td>${m.carteiras?.nome}</td>
-   <td>${m.dividido}</td>
-  </tr>`
+    <td>${new Date(m.data).toLocaleString()}</td>
+    <td>${m.onde}</td>
+    <td>${m.descricao}</td>
+    <td>R$ ${m.valor}</td>
+    <td>${m.modo_pagamento}</td>
+   </tr>`
  ).join("");
 }
 
-// ============== SQL DEVE ============
-async function carregarDeve(){
-
- const mes = mesD.value;
- const ano = anoD.value;
-
- const r = await sb.rpc('fn_total_deve');
- const data = r.data||[];
-
- telaDeve.innerHTML =
- data.map(p=>
-  `<div class='card deve'>
-    ${p.nome}<br>
-    Total: R$ ${p.total}
-   </div>`
- ).join("");
-}
-
-// ============== INIT =================
-carregarPessoas();
-carregarCarteiras();
+// ============== INIT ====================
+listarPessoas();
+listarCarteiras();
 carregarMov();
 
 </script>
