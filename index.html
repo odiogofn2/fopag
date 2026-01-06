@@ -1,115 +1,187 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <title>Controle Financeiro</title>
+<meta charset="UTF-8">
+<title>Controle Financeiro</title>
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-  <style>
-    body { font-family: Arial; background:#f5f5f5; }
-    .container { width:90%; max-width:1100px; margin:20px auto; }
+<style>
+:root {
+  --bg:#f1f3f6;
+  --white:#ffffff;
+  --border:#e0e0e0;
+  --text:#2c3e50;
+  --muted:#7f8c8d;
+}
 
-    .card {
-      background:white;
-      padding:12px;
-      margin:10px 0;
-      border-radius:8px;
-      box-shadow:0 0 5px #ccc;
-    }
+* { box-sizing:border-box; }
 
-    table {
-      width:100%;
-      border-collapse:collapse;
-      margin-top:8px;
-    }
+body {
+ margin:0;
+ font-family:'Segoe UI', Arial;
+ background:var(--bg);
+ color:var(--text);
+}
 
-    th,td {
-      border:1px solid #ddd;
-      padding:6px;
-      text-align:left;
-    }
+.container {
+ width:92%;
+ max-width:1100px;
+ margin:15px auto;
+}
 
-    input, select, button {
-      padding:6px;
-      margin:4px 0;
-      width:100%;
-      box-sizing:border-box;
-    }
+header {
+ font-size:22px;
+ font-weight:600;
+ margin:10px 0;
+}
 
-    .row { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+/* ABAS */
+.tabs {
+ display:flex;
+ gap:4px;
+}
 
-    .filtros {
-      display:grid;
-      grid-template-columns:1fr 1fr 1fr;
-      gap:6px;
-    }
+.tab {
+ padding:8px 12px;
+ background:#e9ecf0;
+ cursor:pointer;
+ border-radius:10px 10px 0 0;
+ font-size:14px;
+}
 
-    .totais {
-      display:grid;
-      grid-template-columns:1fr 1fr 1fr;
-      gap:6px;
-      font-weight:bold;
-    }
-  </style>
+.tab.active {
+ background:var(--white);
+ border:1px solid var(--border);
+ border-bottom:none;
+ font-weight:bold;
+}
+
+.tabcontent {
+ display:none;
+ background:var(--white);
+ padding:12px;
+ border-radius:0 10px 10px 10px;
+ border:1px solid var(--border);
+ box-shadow:0 2px 6px rgba(0,0,0,.06);
+ margin-bottom:10px;
+}
+
+.tabcontent.active { display:block; }
+
+/* CARDS */
+.card {
+ background:var(--white);
+ padding:10px;
+ margin:6px 0;
+ border-radius:14px;
+ border:1px solid var(--border);
+}
+
+.row { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+.filtros { display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; }
+
+input,select {
+ padding:8px;
+ border:1px solid var(--border);
+ border-radius:10px;
+ margin-bottom:6px;
+}
+
+button {
+ padding:8px;
+ border:none;
+ border-radius:10px;
+ cursor:pointer;
+ font-weight:bold;
+}
+
+table {
+ width:100%;
+ border-collapse:collapse;
+}
+
+th {
+ background:#fafafa;
+}
+
+th,td {
+ border:1px solid var(--border);
+ padding:6px;
+ font-size:13px;
+}
+</style>
+
 </head>
 
 <body>
-
 <div class="container">
 
-<h2>💰 Meu Controle Financeiro</h2>
+<header>💰 Controle das Minhas Finanças</header>
 
-<!-- CADASTRO DE CARTEIRAS -->
-<div class="card">
-<h3>Carteiras</h3>
+<div class="tabs">
+ <div class="tab active" onclick="abrirTab(0)">Carteiras</div>
+ <div class="tab" onclick="abrirTab(1)">Pessoas</div>
+ <div class="tab" onclick="abrirTab(2)">Movimentação</div>
+ <div class="tab" onclick="abrirTab(3)">Relatórios</div>
+</div>
 
+<!-- ABA CARTEIRAS -->
+<div class="tabcontent active">
+
+<h3>Minhas Carteiras</h3>
 <div id="listaCarteiras"></div>
 
 <h4>Nova carteira</h4>
 
 <input id="nomeCarteira" placeholder="Nome da carteira">
-<div class="row">
-  <input id="saldoCarteira" placeholder="Saldo inicial" type="number">
 
-  <select id="tipoCarteira">
-    <option value="conta">Conta</option>
-    <option value="cartao">Cartão</option>
-    <option value="dinheiro">Dinheiro</option>
-    <option value="investimento">Investimento</option>
-  </select>
+<div class="row">
+ <input id="saldoCarteira" placeholder="Saldo inicial" type="number">
+
+ <select id="tipoCarteira">
+  <option value="conta">Conta</option>
+  <option value="cartao">Cartão</option>
+  <option value="dinheiro">Dinheiro</option>
+  <option value="investimento">Investimento</option>
+  <option value="banca">Banca</option>
+ </select>
 </div>
 
 <div class="filtros">
-  <input id="limitePix" placeholder="Limite PIX" type="number">
-  <input id="limiteDinheiro" placeholder="Limite Dinheiro" type="number">
-  <input id="limiteCartao" placeholder="Limite Cartão" type="number">
+ <input id="limitePix" placeholder="Limite PIX" type="number">
+ <input id="limiteDinheiro" placeholder="Limite Dinheiro" type="number">
+ <input id="limiteCartao" placeholder="Limite Cartão" type="number">
 </div>
 
 <button onclick="criarCarteira()">Cadastrar carteira</button>
+
 </div>
 
 
-<!-- PESSOAS -->
-<div class="card">
-<h3>Pessoas</h3>
+<!-- ABA PESSOAS -->
+<div class="tabcontent">
 
+<h3>Pessoas</h3>
 <div id="listaPessoas"></div>
 
 <input id="nomePessoa" placeholder="Nome da pessoa">
+
 <select id="tipoPessoa">
-  <option value="pessoal">Pessoal</option>
-  <option value="amigo">Amigo</option>
-  <option value="familia">Família</option>
-  <option value="cliente">Cliente</option>
+ <option value="pessoal">Pessoal</option>
+ <option value="amigo">Amigo</option>
+ <option value="familia">Família</option>
+ <option value="cliente">Cliente</option>
 </select>
 
 <button onclick="criarPessoa()">Cadastrar pessoa</button>
+
 </div>
 
 
-<!-- MOVIMENTAÇÃO -->
-<div class="card">
+<!-- ABA MOVIMENTAÇÃO -->
+<div class="tabcontent">
+
 <h3>Incluir Movimentação</h3>
 
 <input id="dataMov" type="datetime-local">
@@ -123,65 +195,64 @@
 <select id="carteiraMov"></select>
 
 <select id="modoPag">
-  <option value="pix">PIX</option>
-  <option value="cartao">Cartão</option>
-  <option value="dinheiro">Dinheiro</option>
-  <option value="transferencia">Transferência</option>
+ <option value="pix">PIX</option>
+ <option value="cartao">Cartão</option>
+ <option value="dinheiro">Dinheiro</option>
+ <option value="transferencia">Transferência</option>
 </select>
 
 <div class="row">
-  <select id="forma">
-    <option value="avista">À vista</option>
-    <option value="parcelado">Parcelado</option>
-  </select>
+ <select id="forma">
+  <option value="avista">À vista</option>
+  <option value="parcelado">Parcelado</option>
+ </select>
 
-  <input id="qtdParcelas" placeholder="Nº parcelas" type="number">
+ <input id="qtdParcelas" placeholder="Nº parcelas" type="number">
 </div>
 
 <select id="outraPessoa">
-  <option value="">Despesa só minha</option>
+ <option value="">Despesa só minha</option>
 </select>
 
 <div class="row">
-  <select id="dividiu">
-    <option value="nao">Não dividi</option>
-    <option value="sim">Dividi com alguém</option>
-  </select>
+ <select id="dividiu">
+  <option value="nao">Não dividi</option>
+  <option value="sim">Dividi com alguém</option>
+ </select>
 
-  <select id="pessoaRateio"></select>
+ <select id="pessoaRateio"></select>
 </div>
 
 <input id="obsMov" placeholder="Observação">
 
 <button onclick="incluirMov()">Registrar</button>
+
 </div>
 
 
-<!-- RELATÓRIOS -->
-<div class="card">
+<!-- ABA RELATÓRIOS -->
+<div class="tabcontent">
 
-<h3>Relatório do Período</h3>
+<h3>Relatório</h3>
 
 <div class="filtros">
-  <input id="mesFiltro" placeholder="Mês" type="number">
-  <input id="anoFiltro" placeholder="Ano" type="number">
-  <select id="carteiraFiltro"></select>
+ <input id="mesFiltro" placeholder="Mês" type="number">
+ <input id="anoFiltro" placeholder="Ano" type="number">
+ <select id="carteiraFiltro"></select>
 </div>
 
 <button onclick="carregarMov()">Filtrar</button>
 
-<div class="totais" id="totais"></div>
-
 <table>
 <thead>
 <tr>
-  <th>Data</th>
-  <th>Onde</th>
-  <th>Descrição</th>
-  <th>Valor</th>
-  <th>Pagamento</th>
-  <th>Carteira</th>
-  <th>Rateio</th>
+ <th>Data</th>
+ <th>Onde</th>
+ <th>Descrição</th>
+ <th>Valor</th>
+ <th>Pagamento</th>
+ <th>Carteira</th>
+ <th>Dividido</th>
 </tr>
 </thead>
 
@@ -190,129 +261,127 @@
 
 </div>
 
-</div>
 
-<!-- SCRIPT PRINCIPAL -->
 <script>
+// ================= ABAS ==================
+function abrirTab(i) {
+ document.querySelectorAll('.tab').forEach((t,idx)=>
+   t.classList.toggle('active', idx===i)
+ );
 
+ document.querySelectorAll('.tabcontent').forEach((c,idx)=>
+   c.classList.toggle('active', idx===i)
+ );
+}
+
+
+// ============== SUPABASE ================
 const SUPABASE_URL = "https://kkecunfjxflmetsqczrt.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtrZWN1bmZqeGZsbWV0c3FjenJ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc2NzMzNTEsImV4cCI6MjA4MzI0OTM1MX0.bzOf9CfUlMRYItyOV_e7w42vsbudaAQSF7cZUCUTE_A";
 
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 
-// ---- CARTEIRAS INICIAIS DO SEU PERFIL ----
-async function seedCarteiras() {
-
- const iniciais = [
-  { nome:"Conta Banco do Brasil", saldo:0 },
-  { nome:"Conta Caixa", saldo:0 },
-  { nome:"Bet365", saldo:0 },
-  { nome:"Carteira em dinheiro", saldo:0 },
-  { nome:"Cartão de crédito Nubank", saldo:0 },
-  { nome:"Poupança", saldo:0 },
-  { nome:"Trabalho – recebimentos de prefeituras", saldo:0 }
- ];
-
- for (const c of iniciais) {
-   await db.from("carteiras").insert(c);
- }
-}
-
-
-// ---------------- PESSOAS ----------------
-
+// ============== PESSOAS =================
 async function criarPessoa() {
 
- const nome = document.getElementById("nomePessoa").value;
- const tipo = document.getElementById("tipoPessoa").value;
+ await db.from("pessoas").insert({
+  nome:nomePessoa.value,
+  tipo:tipoPessoa.value
+ });
 
- await db.from("pessoas").insert({ nome, tipo });
-
- document.getElementById("nomePessoa").value="";
-
+ nomePessoa.value="";
  carregarPessoas();
 }
 
 
-// ---------------- CARTEIRAS --------------
+async function carregarPessoas() {
 
+ const { data } = await db.from("pessoas").select("*");
+
+ document.getElementById("listaPessoas").innerHTML =
+  data.map(p=> `<div class='card'>${p.nome}</div>`).join("");
+
+ const opts =
+  data.map(p=> `<option value='${p.id}'>${p.nome}</option>`).join("");
+
+ document.getElementById("outraPessoa").innerHTML =
+  "<option value=''>Despesa só minha</option>"+opts;
+
+ document.getElementById("pessoaRateio").innerHTML = opts;
+}
+
+
+// ============== CARTEIRAS ===============
 async function criarCarteira() {
 
- const nome = nomeCarteira.value;
- const saldo = parseFloat(saldoCarteira.value || 0);
-
  await db.from("carteiras").insert({
-   nome,
-   saldo,
-   limite_pix: parseFloat(limitePix.value||0),
-   limite_dinheiro: parseFloat(limiteDinheiro.value||0),
-   limite_cartao: parseFloat(limiteCartao.value||0)
+  nome:nomeCarteira.value,
+  saldo:parseFloat(saldoCarteira.value||0),
+  limite_pix:parseFloat(limitePix.value||0),
+  limite_dinheiro:parseFloat(limiteDinheiro.value||0),
+  limite_cartao:parseFloat(limiteCartao.value||0),
+  tipo:tipoCarteira.value
  });
 
+ nomeCarteira.value="";
+ saldoCarteira.value="";
  carregarCarteiras();
 }
 
 
-// ---------------- MOVIMENTAÇÕES -----------
+async function carregarCarteiras() {
 
+ const { data } = await db.from("carteiras").select("*");
+
+ document.getElementById("listaCarteiras").innerHTML =
+  data.map(c=>
+   `<div class='card'>
+     ${c.nome}<br>
+     Saldo: R$ ${c.saldo.toFixed(2)}
+    </div>`
+  ).join("");
+
+ const opts =
+  data.map(c=> `<option value='${c.id}'>${c.nome}</option>`).join("");
+
+ document.getElementById("carteiraMov").innerHTML = opts;
+ document.getElementById("carteiraFiltro").innerHTML = opts;
+}
+
+
+// ============== MOVIMENTAÇÕES ===========
 async function incluirMov() {
 
- const data = dataMov.value;
- const onde = ondeMov.value;
- const descricao = descMov.value;
  const valor = parseFloat(valorMov.value||0);
- const carteira_id = carteiraMov.value;
- const modo_pagamento = modoPag.value;
 
- const parcelado = forma.value==="parcelado";
- const parcelas = parseFloat(qtdParcelas.value||1);
+ await db.from("movimentacoes").insert({
+  data:dataMov.value,
+  onde:ondeMov.value,
+  descricao:descMov.value,
+  valor,
+  carteira_id:carteiraMov.value,
+  modo_pagamento:modoPag.value,
+  a_vista:forma.value==="avista",
+  parcelado:forma.value==="parcelado",
+  parcelas:parseFloat(qtdParcelas.value||1),
+  outra_pessoa_id:outraPessoa.value||null,
+  dividido:dividiu.value==="sim",
+  observacao:obsMov.value
+ });
 
- const dividido = dividiu.value==="sim";
- const pessoa_id = pessoaRateio.value;
+ // atualiza saldo
+ if (forma.value==="avista") {
 
- const outra_pessoa_id = outraPessoa.value || null;
+  const { data:c } = await db
+   .from("carteiras")
+   .select("*")
+   .eq("id", carteiraMov.value)
+   .single();
 
- // atualiza saldo se à vista
- if (!parcelado) {
-   const { data:c } = await db
-     .from("carteiras")
-     .select("*")
-     .eq("id", carteira_id)
-     .single();
-
-   await db.from("carteiras")
-     .update({ saldo: c.saldo - valor })
-     .eq("id", carteira_id);
- }
-
- const { data:mov } = await db.from("movimentacoes")
-  .insert({
-    data,
-    onde,
-    descricao,
-    valor,
-    carteira_id,
-    modo_pagamento,
-    a_vista: !parcelado,
-    parcelado,
-    parcelas,
-    outra_pessoa_id,
-    dividido,
-    observacao: obsMov.value
-  })
-  .select()
-  .single();
-
-
- if (dividido && pessoa_id) {
-
-   const parte = valor/2;
-
-   await db.from("rateios").insert([
-     { movimentacao_id: mov.id, pessoa_id: null, valor_parte: parte },
-     { movimentacao_id: mov.id, pessoa_id, valor_parte: parte }
-   ]);
+  await db.from("carteiras")
+   .update({ saldo: c.saldo - valor })
+   .eq("id", carteiraMov.value);
  }
 
  valorMov.value="";
@@ -324,205 +393,36 @@ async function incluirMov() {
 }
 
 
-// ----------------- CONSULTAS --------------
-
-async function carregarCarteiras() {
-
- const { data } = await db.from("carteiras").select("*");
-
- listaCarteiras.innerHTML =
-  data.map(c =>
-   `<div class='card'>
-     ${c.nome}<br>
-     Saldo: R$ ${c.saldo.toFixed(2)}
-    </div>`
-  ).join("");
-
-
- // preenche selects
- const opts =
-   data.map(c =>
-     `<option value="${c.id}">${c.nome}</option>`
-   ).join("");
-
- carteiraMov.innerHTML = opts;
- carteiraFiltro.innerHTML = "<option value=''>Todas</option>"+opts;
- carteiraMov.innerHTML = opts;
-
- carteiraMov.innerHTML = opts;
- carteiraFiltro.innerHTML = opts;
-
- carteiraMov.innerHTML = opts;
-
- carteiraFiltro.innerHTML = opts;
-
- carteiraMov.innerHTML = opts;
-
- carteiraMov.innerHTML = opts;
-
-
- carteiraFiltro.innerHTML = opts;
-
-
- carteiraMov.innerHTML = opts;
-
- carteiraMov.innerHTML = opts;
-
- carteiraMov.innerHTML = opts;
-
- carteiraFiltro.innerHTML = opts;
-
-
- carteiraMov.innerHTML = opts;
-
- carteiraFiltro.innerHTML = opts;
-
-
- carteiraMov.innerHTML = opts;
-
-
- carteiraMov.innerHTML = opts;
-
-
- carteiraFiltro.innerHTML = opts;
-
-
- carteiraMov.innerHTML = opts;
-
-
- carteiraFiltro.innerHTML = opts;
-
-
- carteiraMov.innerHTML = opts;
-
-
- carteiraFiltro.innerHTML = opts;
-
-
- carteiraMov.innerHTML = opts;
-
-
- carteiraFiltro.innerHTML = opts;
-
-
- // simples e direto:
- document.getElementById("carteiraMov").innerHTML = opts;
- document.getElementById("carteiraFiltro").innerHTML = opts;
-
- document.getElementById("carteiraMov").innerHTML = opts;
- document.getElementById("carteiraFiltro").innerHTML = opts;
-}
-
-
-async function carregarPessoas() {
-
- const { data } = await db.from("pessoas").select("*");
-
- listaPessoas.innerHTML =
-  data.map(p =>
-   `<div class='card'>${p.nome}</div>`
-  ).join("");
-
- const opts =
-   data.map(p =>
-    `<option value="${p.id}">${p.nome}</option>`
-   ).join("");
-
- pessoaRateio.innerHTML = opts;
- pessoaRateio.innerHTML = opts;
-
- pessoaRateio.innerHTML = opts;
-
- pessoaRateio.innerHTML = opts;
-
- pessoaRateio.innerHTML = opts;
-
- pessoaRateio.innerHTML = opts;
-
- pessoaRateio.innerHTML = opts;
-
- pessoaRateio.inner.innerHTML = opts;
-
- pessoaRateio.innerHTML = opts;
-
- pessoaRateio.innerHTML = opts;
-
- pessoaRateio.innerHTML = opts;
-
- pessoaRateio.innerHTML = opts;
-
- pessoaRateio.innerHTML = opts;
-
- pessoaRateio.innerHTML = opts;
-
- pessoaRateio.innerHTML = opts;
-
- pessoaRateio.innerHTML = opts;
-
- pessoaRateio.innerHTML = opts;
-
- pessoaRateio.innerHTML = opts;
-
- pessoaRateio.innerHTML = opts;
-
- pessoaRateio.innerHTML = opts;
-
- pessoaRateio.innerHTML = opts;
-
- pessoaRateio.innerHTML = opts;
-
- pessoaRateio.innerHTML = opts;
-
-
- document.getElementById("outraPessoa").innerHTML =
-   "<option value=''>Despesa só minha</option>"+opts;
-
- document.getElementById("pessoaRateio").innerHTML = opts;
-}
-
-
 async function carregarMov() {
 
- const mes = mesFiltro.value;
- const ano = anoFiltro.value;
- const carteira = carteiraFiltro.value;
+ const { data } =
+  await db.from("movimentacoes")
+   .select("*, carteiras(nome)")
+   .order("data",{ ascending:false });
 
- let query = db.from("movimentacoes").select("*, carteiras(nome), pessoas(nome)");
-
- if (mes) query = query.ilike("data", `${ano}-${mes.padStart(2,'0')}%`);
- if (carteira) query = query.eq("carteira_id", carteira);
-
- const { data } = await query.order("data",{ ascending:false });
-
- tabelaMov.innerHTML =
- data.map(m =>
+ document.getElementById("tabelaMov").innerHTML =
+ data.map(m=>
   `<tr>
     <td>${new Date(m.data).toLocaleString()}</td>
     <td>${m.onde}</td>
     <td>${m.descricao}</td>
     <td>R$ ${m.valor.toFixed(2)}</td>
     <td>${m.modo_pagamento}</td>
-    <td>${m.carteiras?.nome || ''}</td>
-    <td>${m.dividido ? 'Sim' : 'Não'}</td>
+    <td>${m.carteiras?.nome||''}</td>
+    <td>${m.dividido?'Sim':'Não'}</td>
    </tr>`
  ).join("");
-
-
- // totais do filtro
- const total = data.reduce((s,m)=>s+m.valor,0);
-
- totais.innerHTML =
-  `<div>Total no período: R$ ${total.toFixed(2)}</div>`;
 }
 
 
-// ------------- INIT -----------------------
-
-carregarCarteiras();
+// ============== INIT ====================
 carregarPessoas();
+carregarCarteiras();
 carregarMov();
 
 </script>
 
 </body>
 </html>
+
+
