@@ -3,81 +3,66 @@
 <head>
   <meta charset="UTF-8">
   <title>Controle Financeiro</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="stylesheet" href="style.css">
-  <link rel="icon" href="data:,">
 </head>
 <body>
 
 <div class="app">
+  <h1>💰 Controle Financeiro</h1>
 
-  <header class="topo">
-    <h1>💰 Finanças</h1>
-    <span id="saldo">R$ 0,00</span>
-  </header>
+  <div id="mensagem"></div>
 
-  <section class="resumo">
-    <div class="card entrada">
-      <span>Entradas</span>
-      <strong id="totalEntradas">R$ 0,00</strong>
-    </div>
-    <div class="card saida">
-      <span>Saídas</span>
-      <strong id="totalSaidas">R$ 0,00</strong>
-    </div>
-  </section>
-
-  <section class="formulario">
-
-    <button type="button" class="categorias-btn" onclick="abrirCategorias()">⚙️ Categorias</button>
-
+  <div class="formulario">
     <select id="tipo">
       <option value="">Tipo</option>
       <option value="entrada">Entrada</option>
       <option value="saida">Saída</option>
     </select>
 
-    <input type="text" id="valor" placeholder="Valor (ex: 5,99)">
-    <input type="text" id="local" placeholder="Descrição / Local">
+    <input id="valor" placeholder="Valor (5,99)" />
+    <input id="local" placeholder="Descrição / Local" />
 
     <select id="categoria">
       <option value="">Categoria</option>
+      <option>Alimentação</option>
+      <option>Moradia</option>
+      <option>Transporte</option>
+      <option>Lazer</option>
+      <option>Saúde</option>
+      <option>Educação</option>
+      <option>Outros</option>
     </select>
 
-    <select id="parcelado">
-      <option value="nao">À vista</option>
-      <option value="sim">Parcelado</option>
-    </select>
+    <select id="pagamento"></select>
 
-    <input type="number" id="qtdParcelas" placeholder="Parcelas" disabled>
-
-    <button onclick="salvarLancamento()">Salvar</button>
-    <button class="cancelar" onclick="cancelarEdicao()">Cancelar</button>
-
-    <div id="mensagem" class="mensagem"></div>
-  </section>
-
-  <section class="lista">
-    <h2>Lançamentos</h2>
-    <ul id="lista"></ul>
-  </section>
-
-</div>
-
-<!-- MODAL CATEGORIAS -->
-<div class="modal" id="modalCategorias">
-  <div class="modal-content">
-    <h3>Categorias</h3>
-
-    <div class="nova-categoria">
-      <input type="text" id="novaCategoria" placeholder="Nova categoria">
-      <button onclick="adicionarCategoria()">Adicionar</button>
+    <div class="parcelas">
+      <label>
+        <input type="checkbox" id="parcelado"> Parcelado
+      </label>
+      <input type="number" id="qtdParcelas" min="2" placeholder="Parcelas" disabled>
     </div>
 
-    <ul id="listaCategorias"></ul>
-
-    <button class="fechar" onclick="fecharCategorias()">Fechar</button>
+    <button onclick="salvarLancamento()">Salvar</button>
   </div>
+
+  <div class="gerenciar">
+    <h3>💳 Formas de Pagamento</h3>
+    <input id="novoPagamento" placeholder="Nova forma de pagamento">
+    <button onclick="addPagamento()">Adicionar</button>
+    <ul id="listaPagamentos"></ul>
+  </div>
+
+  <div class="filtro-mes">
+    <input type="month" id="filtroMes">
+  </div>
+
+  <div class="resumo">
+    <div>Entradas: <span id="totalEntradas">0</span></div>
+    <div>Saídas: <span id="totalSaidas">0</span></div>
+    <div>Saldo: <span id="saldo">0</span></div>
+  </div>
+
+  <ul id="lista"></ul>
 </div>
 
 <script src="script.js"></script>
