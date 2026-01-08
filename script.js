@@ -9,7 +9,7 @@ let sessionUser = null;
 
 let categories = [];
 let paymentMethods = [];
-let transactions = []; // todas do usuário (para gráficos e filtros)
+let transactions = [];
 
 let editId = null;
 
@@ -24,13 +24,13 @@ document.addEventListener("DOMContentLoaded", async () => {
   configurarFiltroMes();
   configurarAuthUI();
 
-  // estado de sessão
+  // carrega sessão atual
   const { data } = await supabase.auth.getSession();
   sessionUser = data.session?.user || null;
 
   await aplicarEstadoAuth();
 
-  // escuta mudanças de login/logout
+  // escuta login/logout
   supabase.auth.onAuthStateChange(async (_event, newSession) => {
     sessionUser = newSession?.user || null;
     await aplicarEstadoAuth();
@@ -88,7 +88,7 @@ function mesesOrdenados(lista) {
   return Array.from(s).sort((a, b) => a.localeCompare(b));
 }
 
-/* ================== AUTH ================== */
+/* ================== AUTH UI ================== */
 function configurarAuthUI() {
   const formAuth = document.getElementById("formAuth");
   const btnLogout = document.getElementById("btnLogout");
@@ -96,16 +96,19 @@ function configurarAuthUI() {
 
   formAuth.addEventListener("submit", async (e) => {
     e.preventDefault();
+
     const email = document.getElementById("authEmail").value.trim();
     const pass = document.getElementById("authPass").value;
 
-    // tenta login; se falhar, cadastra e tenta login
+    // tenta login
     let res = await supabase.auth.signInWithPassword({ email, password: pass });
+
+    // se falhar, cria conta
     if (res.error) {
       const sign = await supabase.auth.signUp({ email, password: pass });
       if (sign.error) return alert(sign.error.message);
-      // em alguns projetos o email precisa confirmar; se for o caso, avisa
-      return alert("Conta criada. Se o Supabase exigir confirmação de e-mail, confirme e tente entrar novamente.");
+
+      return alert("Conta criada! Se seu Supabase exigir confirmação por e-mail, confirme e tente entrar novamente.");
     }
   });
 
@@ -121,19 +124,68 @@ function configurarAuthUI() {
 async function aplicarEstadoAuth() {
   const logado = !!sessionUser;
 
-  show("authBox", true);
+  // deslogado: mostra login, esconde app
+  show("authBox", !logado);
   show("tabs", logado);
   show("lancamentos", logado);
   show("graficos", logado);
   show("configuracoes", logado);
 
+  // se logado, esconde botão logout do authbox (porque authbox some)
   document.getElementById("btnLogout").style.display = logado ? "" : "none";
 
   if (!logado) return;
 
-  // Carrega tudo do banco
+  // garantir que a aba inicial esteja correta
+  ativarAba("lancamentos");
+
+  // carregar dados do BD
   await carregarTudo();
+
+  // renderizar
   renderTudo();
+}
+
+/* ================== ABAS ================== */
+function configurarAbas() {
+  const tabs = document.querySelectorAll(".tabs button");
+
+  tabs.forEach(btn => {
+    btn.addEventListener("click", () => {
+      ativarAba(btn.dataset.aba);
+    });
+  });
+}
+
+function ativarAba(id) {
+  document.querySelectorAll(".tabs button").forEach(b => b.classList.remove("active"));
+  document.querySelectorAll(".aba").forEach(a => a.classList.remove("ativa"));
+
+  const btn = document.querySelector(`.tabs button[data-aba="${id}"]`);
+  if (btn) btn.classList.add("active");
+
+  const sec = document.getElementById(id);
+  if (sec) sec.classList.add("ativa");
+
+  if (id === "graficos") atualizarGraficos();
+}
+
+/* ================== FILTRO ================== */
+function configurarFiltroMes() {
+  const el = document.getElementById("mesFiltro");
+  if (!el) return;
+
+  if (!el.value) {
+    const hoje = new Date();
+    el.value = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, "0")}`;
+  }
+
+  el.addEventListener("change", () => {
+    renderLancamentos();
+    if (document.getElementById("graficos").classList.contains("ativa")) {
+      atualizarGraficos();
+    }
+  });
 }
 
 /* ================== LOAD DATA ================== */
@@ -162,7 +214,6 @@ async function carregarPagamentos() {
 }
 
 async function carregarTransacoes() {
-  // pega tudo (para gráficos). Se crescer muito, a gente pagina.
   const { data, error } = await supabase
     .from("transactions")
     .select(`
@@ -185,10 +236,6 @@ function renderTudo() {
   renderCategorias();
   renderPagamentos();
   renderLancamentos();
-  // só atualiza gráficos se estiver na aba
-  if (document.getElementById("graficos").classList.contains("ativa")) {
-    atualizarGraficos();
-  }
 }
 
 function renderCategorias() {
@@ -261,39 +308,9 @@ function renderLancamentos() {
   document.getElementById("saldo").innerText = `Saldo: ${fmtBRL(entradas - saidas)}`;
 }
 
-/* ================== FILTRO/ABAS ================== */
-function configurarFiltroMes() {
-  const el = document.getElementById("mesFiltro");
-  if (!el) return;
-
-  if (!el.value) {
-    const hoje = new Date();
-    el.value = `${hoje.getFullYear()}-${String(hoje.getMonth()+1).padStart(2,"0")}`;
-  }
-
-  el.addEventListener("change", () => {
-    renderLancamentos();
-    if (document.getElementById("graficos").classList.contains("ativa")) {
-      atualizarGraficos();
-    }
-  });
-}
-
-function configurarAbas() {
-  const tabs = document.querySelectorAll(".tabs button");
-  tabs.forEach(btn => {
-    btn.addEventListener("click", () => {
-      tabs.forEach(b => b.classList.remove("active"));
-      document.querySelectorAll(".aba").forEach(a => a.classList.remove("ativa"));
-
-      btn.classList.add("active");
-      const id = btn.dataset.aba;
-      document.getElementById(id).classList.add("ativa");
-
-      if (id === "graficos") atualizarGraficos();
-    });
-  });
-}
+/* ================== CONFIG: bind botões ================== */
+document.getElementById("btnAddCategoria").addEventListener("click", addCategoria);
+document.getElementById("btnAddPagamento").addEventListener("click", addPagamento);
 
 /* ================== CRUD: CATEGORIAS ================== */
 async function addCategoria() {
@@ -334,8 +351,9 @@ async function removerCategoria(id) {
   if (error) return alert(error.message);
 
   await carregarCategorias();
-  await carregarTransacoes(); // porque categoria_id pode virar null
+  await carregarTransacoes();
   renderTudo();
+  atualizarGraficosSeAbaAtiva();
 }
 
 /* ================== CRUD: PAGAMENTOS ================== */
@@ -379,6 +397,7 @@ async function removerPagamento(id) {
   await carregarPagamentos();
   await carregarTransacoes();
   renderTudo();
+  atualizarGraficosSeAbaAtiva();
 }
 
 /* ================== CRUD: LANÇAMENTOS ================== */
@@ -401,7 +420,7 @@ document.getElementById("formLancamento").addEventListener("submit", async (e) =
     if (!category_id) throw "Selecione a categoria";
     if (!payment_method_id) throw "Selecione a forma de pagamento";
 
-    // editar apenas UMA parcela (registro)
+    // editar apenas uma parcela
     if (editId) {
       const monthDate = monthToDate(baseMonthStr);
       const { error } = await supabase
@@ -421,7 +440,7 @@ document.getElementById("formLancamento").addEventListener("submit", async (e) =
       return;
     }
 
-    // novo: gera parcelas por mês (N inserts)
+    // novo: gera parcelas por mês
     const group_id = installments > 1 ? crypto.randomUUID() : null;
 
     const base = +(amountTotal / installments).toFixed(2);
@@ -530,7 +549,6 @@ function atualizarGraficosSeAbaAtiva() {
 function atualizarGraficos() {
   const lista = transactions;
 
-  // (1) Entradas x Saídas por mês
   const meses = mesesOrdenados(lista);
   const entradasMes = [];
   const saidasMes = [];
@@ -545,7 +563,6 @@ function atualizarGraficos() {
     saidasMes.push(+s.toFixed(2));
   });
 
-  // (2) Gastos por categoria (respeita filtro)
   const mesFiltro = getMesFiltro();
   const baseCat = mesFiltro ? lista.filter(t => t.month_str === mesFiltro) : lista;
   const gastos = {};
@@ -559,7 +576,6 @@ function atualizarGraficos() {
   const catLabels = Object.keys(gastos);
   const catValues = catLabels.map(k => +gastos[k].toFixed(2));
 
-  // (3) Saldo acumulado
   let acum = 0;
   const saldoAcum = meses.map((m, idx) => {
     const net = entradasMes[idx] - saidasMes[idx];
@@ -576,7 +592,13 @@ function renderChartMensal(labels, entradas, saidas) {
   const el = document.getElementById("graficoMensal");
   if (!el || !window.Chart) return;
 
-  const data = { labels, datasets: [{ label: "Entradas", data: entradas }, { label: "Saídas", data: saidas }] };
+  const data = {
+    labels,
+    datasets: [
+      { label: "Entradas", data: entradas },
+      { label: "Saídas", data: saidas }
+    ]
+  };
 
   if (chartMensal) { chartMensal.data = data; chartMensal.update(); return; }
 
@@ -616,10 +638,6 @@ function renderChartSaldo(labels, values) {
     options: { responsive: true, plugins: { legend: { position: "top" } } }
   });
 }
-
-/* ================== BIND BUTTONS ================== */
-document.getElementById("btnAddCategoria").addEventListener("click", addCategoria);
-document.getElementById("btnAddPagamento").addEventListener("click", addPagamento);
 
 /* ===== Expor para onclick ===== */
 window.editarLancamento = editarLancamento;
