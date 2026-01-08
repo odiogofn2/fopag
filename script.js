@@ -1,357 +1,460 @@
-/* ================== STORAGE ================== */
-const STORAGE = {
-  lancamentos: 'lancamentos',
-  categorias: 'categorias',
-  pagamentos: 'pagamentos'
-};
+/* ================== SUPABASE CONFIG ================== */
+const SUPABASE_URL = "https://fwzdxtpkirkyygzoezjx.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ3emR4dHBraXJreXlnem9lemp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc4OTE3MjcsImV4cCI6MjA4MzQ2NzcyN30.JhZaeArVoReH150Z6seCKu8AM1qw9PeZayLfTtfJqIQ";
+
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+/* ================== ESTADO ================== */
+let sessionUser = null;
+
+let categories = [];
+let paymentMethods = [];
+let transactions = []; // todas do usuário (para gráficos e filtros)
 
 let editId = null;
 
 /* ================== CHARTS ================== */
-let chartMensal = null;      // (1) Entradas x Saídas por mês
-let chartCategorias = null;  // (2) Gastos por categoria
-let chartSaldo = null;       // (3) Saldo acumulado
+let chartMensal = null;
+let chartCategorias = null;
+let chartSaldo = null;
 
 /* ================== INIT ================== */
-document.addEventListener('DOMContentLoaded', () => {
-  iniciarListas();
+document.addEventListener("DOMContentLoaded", async () => {
   configurarAbas();
   configurarFiltroMes();
+  configurarAuthUI();
 
-  renderCategorias();
-  renderPagamentos();
-  renderLancamentos();
+  // estado de sessão
+  const { data } = await supabase.auth.getSession();
+  sessionUser = data.session?.user || null;
+
+  await aplicarEstadoAuth();
+
+  // escuta mudanças de login/logout
+  supabase.auth.onAuthStateChange(async (_event, newSession) => {
+    sessionUser = newSession?.user || null;
+    await aplicarEstadoAuth();
+  });
 });
 
-/* ================== UTIL ================== */
-const get = key => JSON.parse(localStorage.getItem(key)) || [];
-const set = (key, value) => localStorage.setItem(key, JSON.stringify(value));
+/* ================== UI HELPERS ================== */
+function show(elId, yes) {
+  const el = document.getElementById(elId);
+  if (!el) return;
+  el.style.display = yes ? "" : "none";
+}
 
-const gerarId = () => Date.now() + Math.floor(Math.random() * 1000);
+function fmtBRL(n) {
+  return `R$ ${Number(n).toFixed(2).replace(".", ",")}`;
+}
 
 function parseValor(valor) {
-  // aceita 5,99 / 5.99 / 1.234,56
   const v = String(valor).trim();
-  if (!v) throw 'Informe o valor';
-
-  const n = parseFloat(v.replace(/\./g, '').replace(',', '.'));
-  if (isNaN(n) || n <= 0) throw 'Valor inválido';
-
-  return n;
+  if (!v) throw "Informe o valor";
+  const n = parseFloat(v.replace(/\./g, "").replace(",", "."));
+  if (isNaN(n) || n <= 0) throw "Valor inválido";
+  return +n.toFixed(2);
 }
 
 function normalizarMes(yyyyMm) {
-  if (!yyyyMm || !/^\d{4}-\d{2}$/.test(yyyyMm)) throw 'Selecione o mês';
+  if (!yyyyMm || !/^\d{4}-\d{2}$/.test(yyyyMm)) throw "Selecione o mês";
   return yyyyMm;
 }
 
+function monthToDate(yyyyMm) {
+  const [y, m] = yyyyMm.split("-").map(Number);
+  return new Date(y, m - 1, 1);
+}
+
+function dateToMonthStr(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  return `${y}-${m}`;
+}
+
 function somarMes(yyyyMm, offset) {
-  const [y, m] = yyyyMm.split('-').map(Number);
-  const d = new Date(y, m - 1 + offset, 1);
-  const yy = d.getFullYear();
-  const mm = String(d.getMonth() + 1).padStart(2, '0');
-  return `${yy}-${mm}`;
+  const d = monthToDate(yyyyMm);
+  d.setMonth(d.getMonth() + offset);
+  return dateToMonthStr(d);
 }
 
 function getMesFiltro() {
-  const el = document.getElementById('mesFiltro');
-  return el ? el.value : '';
+  const el = document.getElementById("mesFiltro");
+  return el ? el.value : "";
 }
 
 function mesesOrdenados(lista) {
-  const s = new Set(lista.map(l => l.mes).filter(Boolean));
+  const s = new Set(lista.map(t => t.month_str).filter(Boolean));
   return Array.from(s).sort((a, b) => a.localeCompare(b));
 }
 
-/* ================== ABAS ================== */
-function configurarAbas() {
-  const tabs = document.querySelectorAll('.tabs button');
+/* ================== AUTH ================== */
+function configurarAuthUI() {
+  const formAuth = document.getElementById("formAuth");
+  const btnLogout = document.getElementById("btnLogout");
+  const btnLogout2 = document.getElementById("btnLogout2");
 
-  tabs.forEach(btn => {
-    btn.addEventListener('click', () => {
-      tabs.forEach(b => b.classList.remove('active'));
-      document.querySelectorAll('.aba').forEach(a => a.classList.remove('ativa'));
+  formAuth.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const email = document.getElementById("authEmail").value.trim();
+    const pass = document.getElementById("authPass").value;
 
-      btn.classList.add('active');
-      const id = btn.dataset.aba;
-      document.getElementById(id).classList.add('ativa');
+    // tenta login; se falhar, cadastra e tenta login
+    let res = await supabase.auth.signInWithPassword({ email, password: pass });
+    if (res.error) {
+      const sign = await supabase.auth.signUp({ email, password: pass });
+      if (sign.error) return alert(sign.error.message);
+      // em alguns projetos o email precisa confirmar; se for o caso, avisa
+      return alert("Conta criada. Se o Supabase exigir confirmação de e-mail, confirme e tente entrar novamente.");
+    }
+  });
 
-      if (id === 'graficos') atualizarGraficos();
-    });
+  btnLogout.addEventListener("click", async () => {
+    await supabase.auth.signOut();
+  });
+
+  btnLogout2.addEventListener("click", async () => {
+    await supabase.auth.signOut();
   });
 }
 
-/* ================== FILTRO MÊS ================== */
+async function aplicarEstadoAuth() {
+  const logado = !!sessionUser;
+
+  show("authBox", true);
+  show("tabs", logado);
+  show("lancamentos", logado);
+  show("graficos", logado);
+  show("configuracoes", logado);
+
+  document.getElementById("btnLogout").style.display = logado ? "" : "none";
+
+  if (!logado) return;
+
+  // Carrega tudo do banco
+  await carregarTudo();
+  renderTudo();
+}
+
+/* ================== LOAD DATA ================== */
+async function carregarTudo() {
+  await Promise.all([carregarCategorias(), carregarPagamentos(), carregarTransacoes()]);
+}
+
+async function carregarCategorias() {
+  const { data, error } = await supabase
+    .from("categories")
+    .select("id,name")
+    .order("name", { ascending: true });
+
+  if (error) throw alert(error.message);
+  categories = data || [];
+}
+
+async function carregarPagamentos() {
+  const { data, error } = await supabase
+    .from("payment_methods")
+    .select("id,name")
+    .order("name", { ascending: true });
+
+  if (error) throw alert(error.message);
+  paymentMethods = data || [];
+}
+
+async function carregarTransacoes() {
+  // pega tudo (para gráficos). Se crescer muito, a gente pagina.
+  const { data, error } = await supabase
+    .from("transactions")
+    .select(`
+      id, group_id, type, amount, description, month,
+      installment_current, installments_total,
+      category_id, payment_method_id
+    `)
+    .order("month", { ascending: true });
+
+  if (error) throw alert(error.message);
+
+  transactions = (data || []).map(t => ({
+    ...t,
+    month_str: dateToMonthStr(new Date(t.month)),
+  }));
+}
+
+/* ================== RENDER ================== */
+function renderTudo() {
+  renderCategorias();
+  renderPagamentos();
+  renderLancamentos();
+  // só atualiza gráficos se estiver na aba
+  if (document.getElementById("graficos").classList.contains("ativa")) {
+    atualizarGraficos();
+  }
+}
+
+function renderCategorias() {
+  const ul = document.getElementById("listaCategorias");
+  const select = document.getElementById("categoria");
+
+  ul.innerHTML = "";
+  select.innerHTML = `<option value="">Categoria</option>`;
+
+  categories.forEach((c) => {
+    ul.innerHTML += `
+      <li>
+        ${c.name}
+        <button type="button" onclick="editarCategoria('${c.id}')">✎</button>
+        <button type="button" onclick="removerCategoria('${c.id}')">✕</button>
+      </li>`;
+    select.innerHTML += `<option value="${c.id}">${c.name}</option>`;
+  });
+}
+
+function renderPagamentos() {
+  const ul = document.getElementById("listaPagamentos");
+  const select = document.getElementById("pagamento");
+
+  ul.innerHTML = "";
+  select.innerHTML = `<option value="">Forma de pagamento</option>`;
+
+  paymentMethods.forEach((p) => {
+    ul.innerHTML += `
+      <li>
+        ${p.name}
+        <button type="button" onclick="editarPagamento('${p.id}')">✎</button>
+        <button type="button" onclick="removerPagamento('${p.id}')">✕</button>
+      </li>`;
+    select.innerHTML += `<option value="${p.id}">${p.name}</option>`;
+  });
+}
+
+function renderLancamentos() {
+  const ul = document.getElementById("listaLancamentos");
+  ul.innerHTML = "";
+
+  const mesFiltro = getMesFiltro();
+  const filtrada = mesFiltro
+    ? transactions.filter(t => t.month_str === mesFiltro)
+    : transactions;
+
+  let entradas = 0, saidas = 0;
+
+  filtrada.forEach(t => {
+    const catName = categories.find(c => c.id === t.category_id)?.name || "";
+    const payName = paymentMethods.find(p => p.id === t.payment_method_id)?.name || "";
+
+    ul.innerHTML += `
+      <li>
+        ${t.type.toUpperCase()} | ${t.month_str} | ${fmtBRL(t.amount)}
+        | ${catName} | ${payName}
+        ${t.installments_total > 1 ? `| ${t.installment_current}/${t.installments_total}` : ""}
+        <button type="button" onclick="editarLancamento('${t.id}')">✏️</button>
+        <button type="button" onclick="excluirLancamento('${t.id}')">🗑️</button>
+      </li>
+    `;
+
+    if (t.type === "entrada") entradas += Number(t.amount);
+    else saidas += Number(t.amount);
+  });
+
+  document.getElementById("totalEntradas").innerText = `Entradas: ${fmtBRL(entradas)}`;
+  document.getElementById("totalSaidas").innerText = `Saídas: ${fmtBRL(saidas)}`;
+  document.getElementById("saldo").innerText = `Saldo: ${fmtBRL(entradas - saidas)}`;
+}
+
+/* ================== FILTRO/ABAS ================== */
 function configurarFiltroMes() {
-  const el = document.getElementById('mesFiltro');
+  const el = document.getElementById("mesFiltro");
   if (!el) return;
 
-  // inicia com mês atual se vazio
   if (!el.value) {
     const hoje = new Date();
-    const y = hoje.getFullYear();
-    const m = String(hoje.getMonth() + 1).padStart(2, '0');
-    el.value = `${y}-${m}`;
+    el.value = `${hoje.getFullYear()}-${String(hoje.getMonth()+1).padStart(2,"0")}`;
   }
 
-  el.addEventListener('change', () => {
+  el.addEventListener("change", () => {
     renderLancamentos();
-    // gráficos podem usar o filtro no gráfico 2
-    // só atualiza se estiver na aba gráficos
-    if (document.getElementById('graficos').classList.contains('ativa')) {
+    if (document.getElementById("graficos").classList.contains("ativa")) {
       atualizarGraficos();
     }
   });
 }
 
-/* ================== LISTAS PADRÃO ================== */
-function iniciarListas() {
-  if (!localStorage.getItem(STORAGE.categorias)) {
-    set(STORAGE.categorias, ['Alimentação', 'Moradia', 'Transporte', 'Lazer', 'Saúde', 'Educação', 'Outros']);
-  }
-  if (!localStorage.getItem(STORAGE.pagamentos)) {
-    set(STORAGE.pagamentos, ['Cartão de Crédito', 'Cartão de Débito', 'Pix', 'Dinheiro']);
-  }
-}
+function configurarAbas() {
+  const tabs = document.querySelectorAll(".tabs button");
+  tabs.forEach(btn => {
+    btn.addEventListener("click", () => {
+      tabs.forEach(b => b.classList.remove("active"));
+      document.querySelectorAll(".aba").forEach(a => a.classList.remove("ativa"));
 
-/* ================== CATEGORIAS (CRUD) ================== */
-function renderCategorias() {
-  const categorias = get(STORAGE.categorias);
-  const ul = document.getElementById('listaCategorias');
-  const select = document.getElementById('categoria');
+      btn.classList.add("active");
+      const id = btn.dataset.aba;
+      document.getElementById(id).classList.add("ativa");
 
-  ul.innerHTML = '';
-  select.innerHTML = '<option value="">Categoria</option>';
-
-  categorias.forEach((c, i) => {
-    ul.innerHTML += `
-      <li>
-        ${c}
-        <button type="button" onclick="editarCategoria(${i})">✎</button>
-        <button type="button" onclick="removerCategoria(${i})">✕</button>
-      </li>`;
-    select.innerHTML += `<option>${c}</option>`;
+      if (id === "graficos") atualizarGraficos();
+    });
   });
-
-  set(STORAGE.categorias, categorias);
 }
 
-document.getElementById('btnAddCategoria').addEventListener('click', () => {
-  const input = document.getElementById('novaCategoria');
-  const v = input.value.trim();
-  if (!v) return alert('Informe a categoria');
+/* ================== CRUD: CATEGORIAS ================== */
+async function addCategoria() {
+  const input = document.getElementById("novaCategoria");
+  const name = input.value.trim();
+  if (!name) return alert("Informe a categoria");
 
-  const categorias = get(STORAGE.categorias);
-  if (categorias.includes(v)) return alert('Essa categoria já existe');
+  const { error } = await supabase.from("categories").insert({ user_id: sessionUser.id, name });
+  if (error) return alert(error.message);
 
-  categorias.push(v);
-  set(STORAGE.categorias, categorias);
-  input.value = '';
+  input.value = "";
+  await carregarCategorias();
   renderCategorias();
   atualizarGraficosSeAbaAtiva();
-});
+}
 
-function editarCategoria(i) {
-  const categorias = get(STORAGE.categorias);
-  const atual = categorias[i];
-  const novo = prompt('Editar categoria:', atual);
+async function editarCategoria(id) {
+  const atual = categories.find(c => c.id === id)?.name || "";
+  const novo = prompt("Editar categoria:", atual);
   if (!novo) return;
+  const name = novo.trim();
+  if (!name) return;
 
-  const v = novo.trim();
-  if (!v) return;
+  const { error } = await supabase.from("categories").update({ name }).eq("id", id);
+  if (error) return alert(error.message);
 
-  if (categorias.includes(v) && v !== atual) return alert('Já existe uma categoria com esse nome.');
-
-  const lanc = get(STORAGE.lancamentos).map(l => l.categoria === atual ? { ...l, categoria: v } : l);
-
-  categorias[i] = v;
-  set(STORAGE.categorias, categorias);
-  set(STORAGE.lancamentos, lanc);
-
+  await carregarCategorias();
   renderCategorias();
   renderLancamentos();
   atualizarGraficosSeAbaAtiva();
 }
 
-function removerCategoria(i) {
-  const categorias = get(STORAGE.categorias);
-  const nome = categorias[i];
+async function removerCategoria(id) {
+  const ok = confirm("Excluir categoria? (lançamentos ficam sem categoria)");
+  if (!ok) return;
 
-  const lanc = get(STORAGE.lancamentos);
-  const emUso = lanc.some(l => l.categoria === nome);
-  if (emUso) {
-    const ok = confirm(`A categoria "${nome}" está em uso. Excluir mesmo assim? (os lançamentos ficarão com categoria vazia)`);
-    if (!ok) return;
-  }
+  const { error } = await supabase.from("categories").delete().eq("id", id);
+  if (error) return alert(error.message);
 
-  categorias.splice(i, 1);
-  set(STORAGE.categorias, categorias);
-
-  if (emUso) {
-    const atualizados = lanc.map(l => l.categoria === nome ? { ...l, categoria: '' } : l);
-    set(STORAGE.lancamentos, atualizados);
-  }
-
-  renderCategorias();
-  renderLancamentos();
-  atualizarGraficosSeAbaAtiva();
+  await carregarCategorias();
+  await carregarTransacoes(); // porque categoria_id pode virar null
+  renderTudo();
 }
 
-/* ================== PAGAMENTOS (CRUD) ================== */
-function renderPagamentos() {
-  const pagamentos = get(STORAGE.pagamentos);
-  const ul = document.getElementById('listaPagamentos');
-  const select = document.getElementById('pagamento');
+/* ================== CRUD: PAGAMENTOS ================== */
+async function addPagamento() {
+  const input = document.getElementById("novoPagamento");
+  const name = input.value.trim();
+  if (!name) return alert("Informe a forma de pagamento");
 
-  ul.innerHTML = '';
-  select.innerHTML = '<option value="">Forma de pagamento</option>';
+  const { error } = await supabase.from("payment_methods").insert({ user_id: sessionUser.id, name });
+  if (error) return alert(error.message);
 
-  pagamentos.forEach((p, i) => {
-    ul.innerHTML += `
-      <li>
-        ${p}
-        <button type="button" onclick="editarPagamento(${i})">✎</button>
-        <button type="button" onclick="removerPagamento(${i})">✕</button>
-      </li>`;
-    select.innerHTML += `<option>${p}</option>`;
-  });
-
-  set(STORAGE.pagamentos, pagamentos);
-}
-
-document.getElementById('btnAddPagamento').addEventListener('click', () => {
-  const input = document.getElementById('novoPagamento');
-  const v = input.value.trim();
-  if (!v) return alert('Informe a forma de pagamento');
-
-  const pagamentos = get(STORAGE.pagamentos);
-  if (pagamentos.includes(v)) return alert('Essa forma de pagamento já existe');
-
-  pagamentos.push(v);
-  set(STORAGE.pagamentos, pagamentos);
-  input.value = '';
+  input.value = "";
+  await carregarPagamentos();
   renderPagamentos();
   atualizarGraficosSeAbaAtiva();
-});
+}
 
-function editarPagamento(i) {
-  const pagamentos = get(STORAGE.pagamentos);
-  const atual = pagamentos[i];
-  const novo = prompt('Editar forma de pagamento:', atual);
+async function editarPagamento(id) {
+  const atual = paymentMethods.find(p => p.id === id)?.name || "";
+  const novo = prompt("Editar forma de pagamento:", atual);
   if (!novo) return;
+  const name = novo.trim();
+  if (!name) return;
 
-  const v = novo.trim();
-  if (!v) return;
+  const { error } = await supabase.from("payment_methods").update({ name }).eq("id", id);
+  if (error) return alert(error.message);
 
-  if (pagamentos.includes(v) && v !== atual) return alert('Já existe uma forma de pagamento com esse nome.');
-
-  const lanc = get(STORAGE.lancamentos).map(l => l.pagamento === atual ? { ...l, pagamento: v } : l);
-
-  pagamentos[i] = v;
-  set(STORAGE.pagamentos, pagamentos);
-  set(STORAGE.lancamentos, lanc);
-
+  await carregarPagamentos();
   renderPagamentos();
   renderLancamentos();
   atualizarGraficosSeAbaAtiva();
 }
 
-function removerPagamento(i) {
-  const pagamentos = get(STORAGE.pagamentos);
-  const nome = pagamentos[i];
+async function removerPagamento(id) {
+  const ok = confirm("Excluir forma de pagamento? (lançamentos ficam sem pagamento)");
+  if (!ok) return;
 
-  const lanc = get(STORAGE.lancamentos);
-  const emUso = lanc.some(l => l.pagamento === nome);
-  if (emUso) {
-    const ok = confirm(`"${nome}" está em uso. Excluir mesmo assim? (os lançamentos ficarão com pagamento vazio)`);
-    if (!ok) return;
-  }
+  const { error } = await supabase.from("payment_methods").delete().eq("id", id);
+  if (error) return alert(error.message);
 
-  pagamentos.splice(i, 1);
-  set(STORAGE.pagamentos, pagamentos);
-
-  if (emUso) {
-    const atualizados = lanc.map(l => l.pagamento === nome ? { ...l, pagamento: '' } : l);
-    set(STORAGE.lancamentos, atualizados);
-  }
-
-  renderPagamentos();
-  renderLancamentos();
-  atualizarGraficosSeAbaAtiva();
+  await carregarPagamentos();
+  await carregarTransacoes();
+  renderTudo();
 }
 
-/* ================== LANCAMENTOS: salvar / editar / excluir ================== */
-document.getElementById('formLancamento').addEventListener('submit', (e) => {
+/* ================== CRUD: LANÇAMENTOS ================== */
+document.getElementById("formLancamento").addEventListener("submit", async (e) => {
   e.preventDefault();
 
   try {
-    const tipo = document.getElementById('tipo').value;
-    const valorTotal = parseValor(document.getElementById('valor').value);
-    const local = document.getElementById('local').value.trim();
-    const categoria = document.getElementById('categoria').value;
-    const pagamento = document.getElementById('pagamento').value;
-    const mesBase = normalizarMes(document.getElementById('mes').value);
+    const type = document.getElementById("tipo").value;
+    const amountTotal = parseValor(document.getElementById("valor").value);
+    const description = document.getElementById("local").value.trim();
+    const category_id = document.getElementById("categoria").value;
+    const payment_method_id = document.getElementById("pagamento").value;
+    const baseMonthStr = normalizarMes(document.getElementById("mes").value);
 
-    let qtdParcelas = parseInt(document.getElementById('parcelas').value, 10);
-    if (isNaN(qtdParcelas) || qtdParcelas < 1) qtdParcelas = 1;
+    let installments = parseInt(document.getElementById("parcelas").value, 10);
+    if (isNaN(installments) || installments < 1) installments = 1;
 
-    if (!tipo) throw 'Selecione o tipo';
-    if (!local) throw 'Informe o local/descrição';
-    if (!categoria) throw 'Selecione a categoria';
-    if (!pagamento) throw 'Selecione a forma de pagamento';
+    if (!type) throw "Selecione o tipo";
+    if (!description) throw "Informe o local/descrição";
+    if (!category_id) throw "Selecione a categoria";
+    if (!payment_method_id) throw "Selecione a forma de pagamento";
 
-    let lista = get(STORAGE.lancamentos);
-
-    // editar só este registro
+    // editar apenas UMA parcela (registro)
     if (editId) {
-      lista = lista.map(l => {
-        if (l.id !== editId) return l;
-        return { ...l, tipo, valor: valorTotal, local, categoria, pagamento, mes: mesBase };
-      });
+      const monthDate = monthToDate(baseMonthStr);
+      const { error } = await supabase
+        .from("transactions")
+        .update({ type, amount: amountTotal, description, category_id, payment_method_id, month: monthDate })
+        .eq("id", editId);
 
-      set(STORAGE.lancamentos, lista);
+      if (error) return alert(error.message);
+
       editId = null;
-
       e.target.reset();
-      document.getElementById('parcelas').value = 1;
+      document.getElementById("parcelas").value = 1;
+
+      await carregarTransacoes();
       renderLancamentos();
       atualizarGraficosSeAbaAtiva();
       return;
     }
 
-    // novo: gera parcelas por mês
-    const grupoId = qtdParcelas > 1 ? gerarId() : null;
+    // novo: gera parcelas por mês (N inserts)
+    const group_id = installments > 1 ? crypto.randomUUID() : null;
 
-    const valorParcelaBase = +(valorTotal / qtdParcelas).toFixed(2);
+    const base = +(amountTotal / installments).toFixed(2);
     let acumulado = 0;
 
-    for (let i = 0; i < qtdParcelas; i++) {
-      const isUltima = i === qtdParcelas - 1;
-      const valorParcela = isUltima
-        ? +(valorTotal - acumulado).toFixed(2)
-        : valorParcelaBase;
+    const rows = [];
+    for (let i = 0; i < installments; i++) {
+      const isLast = i === installments - 1;
+      const amount = isLast ? +(amountTotal - acumulado).toFixed(2) : base;
+      acumulado += amount;
 
-      acumulado += valorParcela;
-
-      lista.push({
-        id: gerarId() + i,
-        grupoId,
-        tipo,
-        valor: valorParcela,
-        local,
-        categoria,
-        pagamento,
-        mes: somarMes(mesBase, i),
-        parcelaAtual: qtdParcelas > 1 ? (i + 1) : 1,
-        totalParcelas: qtdParcelas
+      const m = somarMes(baseMonthStr, i);
+      rows.push({
+        user_id: sessionUser.id,
+        group_id,
+        type,
+        amount,
+        description,
+        category_id,
+        payment_method_id,
+        month: monthToDate(m),
+        installment_current: installments > 1 ? (i + 1) : 1,
+        installments_total: installments
       });
     }
 
-    set(STORAGE.lancamentos, lista);
+    const { error } = await supabase.from("transactions").insert(rows);
+    if (error) return alert(error.message);
 
     e.target.reset();
-    document.getElementById('parcelas').value = 1;
+    document.getElementById("parcelas").value = 1;
 
+    await carregarTransacoes();
     renderLancamentos();
     atualizarGraficosSeAbaAtiva();
 
@@ -360,85 +463,59 @@ document.getElementById('formLancamento').addEventListener('submit', (e) => {
   }
 });
 
-function renderLancamentos() {
-  const lista = get(STORAGE.lancamentos);
-  const ul = document.getElementById('listaLancamentos');
-  ul.innerHTML = '';
-
-  const mesFiltro = getMesFiltro();
-  const filtrada = mesFiltro ? lista.filter(l => l.mes === mesFiltro) : lista;
-
-  let entradas = 0;
-  let saidas = 0;
-
-  const ordenada = [...filtrada].sort((a, b) => {
-    if (a.mes === b.mes) return (a.parcelaAtual || 1) - (b.parcelaAtual || 1);
-    return a.mes.localeCompare(b.mes);
-  });
-
-  ordenada.forEach(l => {
-    ul.innerHTML += `
-      <li>
-        ${l.tipo.toUpperCase()} | ${l.mes} | R$ ${l.valor.toFixed(2)}
-        | ${l.categoria} | ${l.pagamento}
-        ${l.totalParcelas > 1 ? `| ${l.parcelaAtual}/${l.totalParcelas}` : ''}
-        <button type="button" onclick="editarLancamento(${l.id})">✏️</button>
-        <button type="button" onclick="excluirLancamento(${l.id})">🗑️</button>
-      </li>
-    `;
-
-    if (l.tipo === 'entrada') entradas += l.valor;
-    else saidas += l.valor;
-  });
-
-  document.getElementById('totalEntradas').innerText = `Entradas: R$ ${entradas.toFixed(2)}`;
-  document.getElementById('totalSaidas').innerText = `Saídas: R$ ${saidas.toFixed(2)}`;
-  document.getElementById('saldo').innerText = `Saldo: R$ ${(entradas - saidas).toFixed(2)}`;
-}
-
-function editarLancamento(id) {
-  const l = get(STORAGE.lancamentos).find(x => x.id === id);
-  if (!l) return;
+async function editarLancamento(id) {
+  const t = transactions.find(x => x.id === id);
+  if (!t) return;
 
   editId = id;
-  document.getElementById('tipo').value = l.tipo;
-  document.getElementById('valor').value = l.valor.toFixed(2).replace('.', ',');
-  document.getElementById('parcelas').value = 1;
-  document.getElementById('local').value = l.local;
-  document.getElementById('categoria').value = l.categoria;
-  document.getElementById('pagamento').value = l.pagamento;
-  document.getElementById('mes').value = l.mes;
+  document.getElementById("tipo").value = t.type;
+  document.getElementById("valor").value = Number(t.amount).toFixed(2).replace(".", ",");
+  document.getElementById("parcelas").value = 1;
+  document.getElementById("local").value = t.description;
+  document.getElementById("categoria").value = t.category_id || "";
+  document.getElementById("pagamento").value = t.payment_method_id || "";
+  document.getElementById("mes").value = t.month_str;
 }
 
-function excluirLancamento(id) {
-  const lista = get(STORAGE.lancamentos);
-  const l = lista.find(x => x.id === id);
-  if (!l) return;
+async function excluirLancamento(id) {
+  const t = transactions.find(x => x.id === id);
+  if (!t) return;
 
-  if (!l.grupoId) {
-    if (!confirm('Excluir este lançamento?')) return;
-    set(STORAGE.lancamentos, lista.filter(x => x.id !== id));
+  if (!t.group_id) {
+    const ok = confirm("Excluir este lançamento?");
+    if (!ok) return;
+
+    const { error } = await supabase.from("transactions").delete().eq("id", id);
+    if (error) return alert(error.message);
+
+    await carregarTransacoes();
     renderLancamentos();
     atualizarGraficosSeAbaAtiva();
     return;
   }
 
   const escolha = prompt(
-    'Lançamento parcelado.\n\n' +
-    '1 = Excluir só esta parcela\n' +
-    '2 = Excluir TODAS as parcelas\n\n' +
-    'Cancelar = não excluir'
+    "Lançamento parcelado.\n\n" +
+    "1 = Excluir só esta parcela\n" +
+    "2 = Excluir TODAS as parcelas\n\n" +
+    "Cancelar = não excluir"
   );
 
-  if (escolha === '1') {
-    set(STORAGE.lancamentos, lista.filter(x => x.id !== id));
+  if (escolha === "1") {
+    const { error } = await supabase.from("transactions").delete().eq("id", id);
+    if (error) return alert(error.message);
+
+    await carregarTransacoes();
     renderLancamentos();
     atualizarGraficosSeAbaAtiva();
     return;
   }
 
-  if (escolha === '2') {
-    set(STORAGE.lancamentos, lista.filter(x => x.grupoId !== l.grupoId));
+  if (escolha === "2") {
+    const { error } = await supabase.from("transactions").delete().eq("group_id", t.group_id);
+    if (error) return alert(error.message);
+
+    await carregarTransacoes();
     renderLancamentos();
     atualizarGraficosSeAbaAtiva();
     return;
@@ -447,13 +524,11 @@ function excluirLancamento(id) {
 
 /* ================== GRÁFICOS ================== */
 function atualizarGraficosSeAbaAtiva() {
-  if (document.getElementById('graficos').classList.contains('ativa')) {
-    atualizarGraficos();
-  }
+  if (document.getElementById("graficos").classList.contains("ativa")) atualizarGraficos();
 }
 
 function atualizarGraficos() {
-  const lista = get(STORAGE.lancamentos);
+  const lista = transactions;
 
   // (1) Entradas x Saídas por mês
   const meses = mesesOrdenados(lista);
@@ -462,9 +537,9 @@ function atualizarGraficos() {
 
   meses.forEach(m => {
     let e = 0, s = 0;
-    lista.filter(l => l.mes === m).forEach(l => {
-      if (l.tipo === 'entrada') e += l.valor;
-      else s += l.valor;
+    lista.filter(t => t.month_str === m).forEach(t => {
+      if (t.type === "entrada") e += Number(t.amount);
+      else s += Number(t.amount);
     });
     entradasMes.push(+e.toFixed(2));
     saidasMes.push(+s.toFixed(2));
@@ -472,118 +547,84 @@ function atualizarGraficos() {
 
   // (2) Gastos por categoria (respeita filtro)
   const mesFiltro = getMesFiltro();
-  const baseCat = mesFiltro ? lista.filter(l => l.mes === mesFiltro) : lista;
-  const gastosPorCategoria = {};
+  const baseCat = mesFiltro ? lista.filter(t => t.month_str === mesFiltro) : lista;
+  const gastos = {};
 
-  baseCat.forEach(l => {
-    if (l.tipo !== 'saida') return;
-    const c = l.categoria || 'Sem categoria';
-    gastosPorCategoria[c] = (gastosPorCategoria[c] || 0) + l.valor;
+  baseCat.forEach(t => {
+    if (t.type !== "saida") return;
+    const nome = categories.find(c => c.id === t.category_id)?.name || "Sem categoria";
+    gastos[nome] = (gastos[nome] || 0) + Number(t.amount);
   });
 
-  const cats = Object.keys(gastosPorCategoria);
-  const catsVals = cats.map(c => +gastosPorCategoria[c].toFixed(2));
+  const catLabels = Object.keys(gastos);
+  const catValues = catLabels.map(k => +gastos[k].toFixed(2));
 
   // (3) Saldo acumulado
-  const saldoAcumulado = [];
   let acum = 0;
-  meses.forEach((m, idx) => {
+  const saldoAcum = meses.map((m, idx) => {
     const net = entradasMes[idx] - saidasMes[idx];
     acum += net;
-    saldoAcumulado.push(+acum.toFixed(2));
+    return +acum.toFixed(2);
   });
 
   renderChartMensal(meses, entradasMes, saidasMes);
-  renderChartCategorias(cats, catsVals, mesFiltro);
-  renderChartSaldo(meses, saldoAcumulado);
+  renderChartCategorias(catLabels, catValues);
+  renderChartSaldo(meses, saldoAcum);
 }
 
 function renderChartMensal(labels, entradas, saidas) {
-  const el = document.getElementById('graficoMensal');
+  const el = document.getElementById("graficoMensal");
   if (!el || !window.Chart) return;
 
-  const data = {
-    labels,
-    datasets: [
-      { label: 'Entradas', data: entradas },
-      { label: 'Saídas', data: saidas }
-    ]
-  };
+  const data = { labels, datasets: [{ label: "Entradas", data: entradas }, { label: "Saídas", data: saidas }] };
 
-  if (chartMensal) {
-    chartMensal.data = data;
-    chartMensal.update();
-    return;
-  }
+  if (chartMensal) { chartMensal.data = data; chartMensal.update(); return; }
 
   chartMensal = new Chart(el, {
-    type: 'bar',
+    type: "bar",
     data,
-    options: {
-      responsive: true,
-      plugins: { legend: { position: 'top' } }
-    }
+    options: { responsive: true, plugins: { legend: { position: "top" } } }
   });
 }
 
-function renderChartCategorias(labels, values, mesFiltro) {
-  const el = document.getElementById('graficoCategorias');
+function renderChartCategorias(labels, values) {
+  const el = document.getElementById("graficoCategorias");
   if (!el || !window.Chart) return;
 
-  const titulo = mesFiltro ? `Gastos por Categoria (${mesFiltro})` : 'Gastos por Categoria (Todos os meses)';
+  const data = { labels, datasets: [{ label: "Gastos por categoria", data: values }] };
 
-  const data = {
-    labels,
-    datasets: [{ label: titulo, data: values }]
-  };
-
-  if (chartCategorias) {
-    chartCategorias.data = data;
-    chartCategorias.update();
-    return;
-  }
+  if (chartCategorias) { chartCategorias.data = data; chartCategorias.update(); return; }
 
   chartCategorias = new Chart(el, {
-    type: 'doughnut',
+    type: "doughnut",
     data,
-    options: {
-      responsive: true,
-      plugins: { legend: { position: 'right' } }
-    }
+    options: { responsive: true, plugins: { legend: { position: "right" } } }
   });
 }
 
 function renderChartSaldo(labels, values) {
-  const el = document.getElementById('graficoSaldo');
+  const el = document.getElementById("graficoSaldo");
   if (!el || !window.Chart) return;
 
-  const data = {
-    labels,
-    datasets: [{ label: 'Saldo acumulado', data: values, tension: 0.25 }]
-  };
+  const data = { labels, datasets: [{ label: "Saldo acumulado", data: values, tension: 0.25 }] };
 
-  if (chartSaldo) {
-    chartSaldo.data = data;
-    chartSaldo.update();
-    return;
-  }
+  if (chartSaldo) { chartSaldo.data = data; chartSaldo.update(); return; }
 
   chartSaldo = new Chart(el, {
-    type: 'line',
+    type: "line",
     data,
-    options: {
-      responsive: true,
-      plugins: { legend: { position: 'top' } }
-    }
+    options: { responsive: true, plugins: { legend: { position: "top" } } }
   });
 }
 
-/* ===== Expor funções globais usadas em onclick ===== */
+/* ================== BIND BUTTONS ================== */
+document.getElementById("btnAddCategoria").addEventListener("click", addCategoria);
+document.getElementById("btnAddPagamento").addEventListener("click", addPagamento);
+
+/* ===== Expor para onclick ===== */
 window.editarLancamento = editarLancamento;
 window.excluirLancamento = excluirLancamento;
+window.editarCategoria = editarCategoria;
 window.removerCategoria = removerCategoria;
-window.editarCategoria = editarCategoria;
+window.editarPagamento = editarPagamento;
 window.removerPagamento = removerPagamento;
-window.editarPagamento = editarPagamento;
-window.editarPagamento = editarPagamento;
-window.editarCategoria = editarCategoria;
