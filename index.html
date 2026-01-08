@@ -12,7 +12,7 @@ body {
 }
 
 .container {
-  max-width: 700px;
+  max-width: 720px;
   margin: auto;
 }
 
@@ -55,6 +55,14 @@ button {
   border: none;
   cursor: pointer;
   margin-top: 12px;
+}
+
+button.editar {
+  background: #f0ad4e;
+}
+
+button.excluir {
+  background: #d9534f;
 }
 
 button:hover {
@@ -108,7 +116,10 @@ button:hover {
   <label>Descrição</label>
   <input type="text" id="descricao">
 
-  <button onclick="salvarLancamento()">Salvar</button>
+  <label>Local</label>
+  <input type="text" id="local">
+
+  <button id="btnSalvar" onclick="salvarLancamento()">Salvar</button>
 </div>
 
 <div class="card">
@@ -119,10 +130,22 @@ button:hover {
 </div>
 
 <script>
+/* ====== ESTADO ====== */
 let lancamentos = JSON.parse(localStorage.getItem("lancamentos")) || [];
 
+/* ====== DOM ====== */
+const tipoInput = document.getElementById("tipo");
+const valorInput = document.getElementById("valor");
+const descricaoInput = document.getElementById("descricao");
+const localInput = document.getElementById("local");
+const editandoIdInput = document.getElementById("editandoId");
+const lista = document.getElementById("lista");
+const saldoEl = document.getElementById("saldo");
+const btnSalvar = document.getElementById("btnSalvar");
+
+/* ====== FUNÇÕES ====== */
 function gerarId() {
-  return Date.now() + Math.random().toString(16).slice(2);
+  return Date.now().toString(36) + Math.random().toString(36).slice(2);
 }
 
 function salvarStorage() {
@@ -133,28 +156,42 @@ function formatar(valor) {
   return valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
+function limparFormulario() {
+  tipoInput.value = "entrada";
+  valorInput.value = "";
+  descricaoInput.value = "";
+  localInput.value = "";
+  editandoIdInput.value = "";
+  btnSalvar.innerText = "Salvar";
+}
+
 function salvarLancamento() {
   const tipo = tipoInput.value;
   const valor = parseFloat(valorInput.value);
-  const descricao = descricaoInput.value;
-  const editandoId = document.getElementById("editandoId").value;
+  const descricao = descricaoInput.value.trim();
+  const local = localInput.value.trim();
+  const editandoId = editandoIdInput.value;
 
-  if (!valor || !descricao) {
+  if (!valor || !descricao || !local) {
     alert("Preencha todos os campos");
     return;
   }
 
   if (editandoId) {
     const l = lancamentos.find(x => x.id === editandoId);
+    if (!l) return;
+
     l.tipo = tipo;
     l.valor = valor;
     l.descricao = descricao;
+    l.local = local;
   } else {
     lancamentos.unshift({
       id: gerarId(),
       tipo,
       valor,
       descricao,
+      local,
       data: new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" }),
 
       // BASE PARA PARCELAS
@@ -165,24 +202,25 @@ function salvarLancamento() {
     });
   }
 
-  document.getElementById("editandoId").value = "";
-  valorInput.value = "";
-  descricaoInput.value = "";
-
   salvarStorage();
   atualizarTela();
+  limparFormulario();
 }
 
 function editar(id) {
   const l = lancamentos.find(x => x.id === id);
+  if (!l) return;
+
   tipoInput.value = l.tipo;
   valorInput.value = l.valor;
   descricaoInput.value = l.descricao;
-  document.getElementById("editandoId").value = id;
+  localInput.value = l.local;
+  editandoIdInput.value = l.id;
+  btnSalvar.innerText = "Atualizar";
 }
 
 function excluir(id) {
-  if (!confirm("Excluir lançamento?")) return;
+  if (!confirm("Deseja excluir este lançamento?")) return;
   lancamentos = lancamentos.filter(l => l.id !== id);
   salvarStorage();
   atualizarTela();
@@ -199,11 +237,12 @@ function atualizarTela() {
     div.className = `lancamento ${l.tipo}`;
     div.innerHTML = `
       <strong>${l.descricao}</strong><br>
+      Local: ${l.local}<br>
       ${l.data}<br>
       ${l.tipo === "entrada" ? "+" : "-"} ${formatar(l.valor)}
       <div class="acoes">
-        <button onclick="editar('${l.id}')">✏️ Editar</button>
-        <button onclick="excluir('${l.id}')">🗑 Excluir</button>
+        <button class="editar" onclick="editar('${l.id}')">✏️ Editar</button>
+        <button class="excluir" onclick="excluir('${l.id}')">🗑 Excluir</button>
       </div>
     `;
     lista.appendChild(div);
@@ -212,13 +251,7 @@ function atualizarTela() {
   saldoEl.innerText = "Saldo: " + formatar(saldo);
 }
 
-/* atalhos DOM */
-const tipoInput = document.getElementById("tipo");
-const valorInput = document.getElementById("valor");
-const descricaoInput = document.getElementById("descricao");
-const lista = document.getElementById("lista");
-const saldoEl = document.getElementById("saldo");
-
+/* INIT */
 atualizarTela();
 </script>
 
