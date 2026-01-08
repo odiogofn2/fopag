@@ -14,6 +14,7 @@ document.addEventListener('DOMContentLoaded', () => {
   renderPagamentos();
   renderLancamentos();
   configurarAbas();
+  configurarFiltroMes();
 });
 
 /* ================== UTIL ================== */
@@ -23,7 +24,7 @@ const set = (key, value) => localStorage.setItem(key, JSON.stringify(value));
 const gerarId = () => Date.now() + Math.floor(Math.random() * 1000);
 
 function parseValor(valor) {
-  // aceita 5,99 ou 5.99 e também 1.234,56
+  // aceita 5,99 / 5.99 / 1.234,56
   const v = String(valor).trim();
   if (!v) throw 'Informe o valor';
   const n = parseFloat(v.replace(/\./g, '').replace(',', '.'));
@@ -32,7 +33,6 @@ function parseValor(valor) {
 }
 
 function normalizarMes(yyyyMm) {
-  // garante formato YYYY-MM
   if (!yyyyMm || !/^\d{4}-\d{2}$/.test(yyyyMm)) throw 'Selecione o mês';
   return yyyyMm;
 }
@@ -45,6 +45,11 @@ function somarMes(yyyyMm, offset) {
   return `${yy}-${mm}`;
 }
 
+function getMesFiltro() {
+  const el = document.getElementById('mesFiltro');
+  return el ? el.value : '';
+}
+
 /* ================== ABAS ================== */
 function configurarAbas() {
   const tabs = document.querySelectorAll('.tabs button');
@@ -54,11 +59,26 @@ function configurarAbas() {
       document.querySelectorAll('.aba').forEach(a => a.classList.remove('ativa'));
 
       btn.classList.add('active');
-      const alvo = btn.dataset.aba || (btn.getAttribute('onclick')?.includes('configuracoes') ? 'configuracoes' : 'lancamentos');
-      const id = btn.dataset.aba ? btn.dataset.aba : btn.getAttribute('onclick')?.includes('configuracoes') ? 'configuracoes' : 'lancamentos';
+      const id = btn.dataset.aba || (btn.getAttribute('onclick')?.includes('configuracoes') ? 'configuracoes' : 'lancamentos');
       document.getElementById(id).classList.add('ativa');
     });
   });
+}
+
+/* ================== FILTRO POR MÊS ================== */
+function configurarFiltroMes() {
+  const el = document.getElementById('mesFiltro');
+  if (!el) return;
+
+  // opcional: já inicia com o mês atual
+  if (!el.value) {
+    const hoje = new Date();
+    const y = hoje.getFullYear();
+    const m = String(hoje.getMonth() + 1).padStart(2, '0');
+    el.value = `${y}-${m}`;
+  }
+
+  el.addEventListener('change', () => renderLancamentos());
 }
 
 /* ================== LISTAS PADRÃO ================== */
@@ -71,7 +91,7 @@ function iniciarListas() {
   }
 }
 
-/* ================== CATEGORIAS (CRUD simples) ================== */
+/* ================== CATEGORIAS (CRUD) ================== */
 function renderCategorias() {
   const categorias = get(STORAGE.categorias);
   const ul = document.getElementById('listaCategorias');
@@ -118,7 +138,6 @@ function editarCategoria(i) {
 
   if (categorias.includes(v) && v !== atual) return alert('Já existe uma categoria com esse nome.');
 
-  // Atualiza também nos lançamentos existentes
   const lanc = get(STORAGE.lancamentos).map(l => l.categoria === atual ? { ...l, categoria: v } : l);
 
   categorias[i] = v;
@@ -152,7 +171,7 @@ function removerCategoria(i) {
   renderLancamentos();
 }
 
-/* ================== PAGAMENTOS (CRUD simples) ================== */
+/* ================== PAGAMENTOS (CRUD) ================== */
 function renderPagamentos() {
   const pagamentos = get(STORAGE.pagamentos);
   const ul = document.getElementById('listaPagamentos');
@@ -199,7 +218,6 @@ function editarPagamento(i) {
 
   if (pagamentos.includes(v) && v !== atual) return alert('Já existe uma forma de pagamento com esse nome.');
 
-  // Atualiza também nos lançamentos existentes
   const lanc = get(STORAGE.lancamentos).map(l => l.pagamento === atual ? { ...l, pagamento: v } : l);
 
   pagamentos[i] = v;
@@ -255,19 +273,11 @@ document.getElementById('formLancamento').addEventListener('submit', (e) => {
 
     let lista = get(STORAGE.lancamentos);
 
-    // Se estiver editando, só permite editar UMA parcela (registro)
+    // Edita só esta parcela/registro
     if (editId) {
       lista = lista.map(l => {
         if (l.id !== editId) return l;
-        return {
-          ...l,
-          tipo,
-          valor: valorTotal, // edição direta altera valor desta parcela
-          local,
-          categoria,
-          pagamento,
-          mes: mesBase
-        };
+        return { ...l, tipo, valor: valorTotal, local, categoria, pagamento, mes: mesBase };
       });
 
       set(STORAGE.lancamentos, lista);
@@ -278,10 +288,9 @@ document.getElementById('formLancamento').addEventListener('submit', (e) => {
       return;
     }
 
-    // NOVO lançamento: se qtdParcelas > 1, gera N registros (um por mês)
+    // Novo: gera parcelas por mês
     const grupoId = qtdParcelas > 1 ? gerarId() : null;
 
-    // Distribui valor igualmente (arredonda para 2 casas) e ajusta última parcela
     const valorParcelaBase = +(valorTotal / qtdParcelas).toFixed(2);
     let acumulado = 0;
 
@@ -324,11 +333,16 @@ function renderLancamentos() {
   const ul = document.getElementById('listaLancamentos');
   ul.innerHTML = '';
 
+  const mesFiltro = getMesFiltro();
+
+  const filtrada = mesFiltro
+    ? lista.filter(l => l.mes === mesFiltro)
+    : lista;
+
   let entradas = 0;
   let saidas = 0;
 
-  // ordena por mês (e por parcela)
-  const ordenada = [...lista].sort((a, b) => {
+  const ordenada = [...filtrada].sort((a, b) => {
     if (a.mes === b.mes) return (a.parcelaAtual || 1) - (b.parcelaAtual || 1);
     return a.mes.localeCompare(b.mes);
   });
@@ -340,7 +354,7 @@ function renderLancamentos() {
         | ${l.categoria} | ${l.pagamento}
         ${l.totalParcelas > 1 ? `| ${l.parcelaAtual}/${l.totalParcelas}` : ''}
         <button type="button" onclick="editarLancamento(${l.id})">✏️</button>
-        <button type="button" onclick="excluirLancamento(${l.id})">🗑</button>
+        <button type="button" onclick="excluirLancamento(${l.id})">🗑️</button>
       </li>
     `;
 
@@ -373,16 +387,13 @@ function excluirLancamento(id) {
   const l = lista.find(x => x.id === id);
   if (!l) return;
 
-  // à vista
   if (!l.grupoId) {
     if (!confirm('Excluir este lançamento?')) return;
-    const nova = lista.filter(x => x.id !== id);
-    set(STORAGE.lancamentos, nova);
+    set(STORAGE.lancamentos, lista.filter(x => x.id !== id));
     renderLancamentos();
     return;
   }
 
-  // parcelado: perguntar 1 ou todas
   const escolha = prompt(
     'Lançamento parcelado.\n\n' +
     '1 = Excluir só esta parcela\n' +
@@ -391,20 +402,16 @@ function excluirLancamento(id) {
   );
 
   if (escolha === '1') {
-    const nova = lista.filter(x => x.id !== id);
-    set(STORAGE.lancamentos, nova);
+    set(STORAGE.lancamentos, lista.filter(x => x.id !== id));
     renderLancamentos();
     return;
   }
 
   if (escolha === '2') {
-    const nova = lista.filter(x => x.grupoId !== l.grupoId);
-    set(STORAGE.lancamentos, nova);
+    set(STORAGE.lancamentos, lista.filter(x => x.grupoId !== l.grupoId));
     renderLancamentos();
     return;
   }
-
-  // qualquer outra coisa: cancela
 }
 
 /* ===== Expor funções globais usadas em onclick ===== */
@@ -414,8 +421,3 @@ window.removerCategoria = removerCategoria;
 window.editarCategoria = editarCategoria;
 window.removerPagamento = removerPagamento;
 window.editarPagamento = editarPagamento;
-
-/* ================== INIT RENDER ================== */
-renderCategorias();
-renderPagamentos();
-renderLancamentos();
