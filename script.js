@@ -1,220 +1,142 @@
 let lancamentos = JSON.parse(localStorage.getItem("lancamentos")) || [];
-let categorias = JSON.parse(localStorage.getItem("categorias")) || [];
+let pagamentos = JSON.parse(localStorage.getItem("pagamentos")) || [
+  "Cartão de Crédito",
+  "Cartão de Débito",
+  "Pix",
+  "Dinheiro",
+  "Vale Alimentação"
+];
+
 let editandoId = null;
 
-const msg = document.getElementById("mensagem");
-
-if (categorias.length === 0) {
-  categorias = [
-    { id: gerarId(), nome: "Alimentação" },
-    { id: gerarId(), nome: "Transporte" },
-    { id: gerarId(), nome: "Moradia" },
-    { id: gerarId(), nome: "Lazer" },
-    { id: gerarId(), nome: "Outros" }
-  ];
-  salvarCategorias();
-}
+const pagamentoEl = () => document.getElementById("pagamento");
+const filtroMesEl = () => document.getElementById("filtroMes");
 
 document.getElementById("parcelado").addEventListener("change", e => {
-  document.getElementById("qtdParcelas").disabled = e.target.value !== "sim";
+  document.getElementById("qtdParcelas").disabled = !e.target.checked;
 });
 
-function gerarId() {
-  return Date.now().toString(36) + Math.random().toString(36).substr(2);
+function mostrarMensagem(msg) {
+  const el = document.getElementById("mensagem");
+  el.innerText = msg;
+  setTimeout(() => el.innerText = "", 3000);
 }
 
-function mostrarMensagem(t) {
-  msg.textContent = t;
-  setTimeout(() => msg.textContent = "", 3000);
-}
+/* =====================
+   FORMAS DE PAGAMENTO
+===================== */
 
-/* ================= CATEGORIAS ================= */
+function renderPagamentos() {
+  pagamentoEl().innerHTML = `<option value="">Forma de pagamento</option>`;
+  pagamentos.forEach(p => {
+    pagamentoEl().innerHTML += `<option>${p}</option>`;
+  });
 
-function abrirCategorias() {
-  document.getElementById("modalCategorias").style.display = "flex";
-  renderizarCategorias();
-}
+  const lista = document.getElementById("listaPagamentos");
+  lista.innerHTML = "";
 
-function fecharCategorias() {
-  document.getElementById("modalCategorias").style.display = "none";
-}
-
-function adicionarCategoria() {
-  const nome = document.getElementById("novaCategoria").value.trim();
-  if (!nome) return;
-  categorias.push({ id: gerarId(), nome });
-  salvarCategorias();
-  document.getElementById("novaCategoria").value = "";
-  renderizarCategorias();
-  renderizarSelectCategorias();
-}
-
-function editarCategoria(id) {
-  const c = categorias.find(x => x.id === id);
-  const novo = prompt("Editar categoria:", c.nome);
-  if (!novo) return;
-  c.nome = novo;
-  salvarCategorias();
-  renderizarCategorias();
-  renderizarSelectCategorias();
-}
-
-function excluirCategoria(id) {
-  if (!confirm("Excluir categoria?")) return;
-  categorias = categorias.filter(c => c.id !== id);
-  salvarCategorias();
-  renderizarCategorias();
-  renderizarSelectCategorias();
-}
-
-function salvarCategorias() {
-  localStorage.setItem("categorias", JSON.stringify(categorias));
-}
-
-function renderizarCategorias() {
-  const ul = document.getElementById("listaCategorias");
-  ul.innerHTML = "";
-  categorias.forEach(c => {
-    ul.innerHTML += `
-      <li>
-        <span>${c.nome}</span>
-        <div>
-          <button onclick="editarCategoria('${c.id}')">✏️</button>
-          <button onclick="excluirCategoria('${c.id}')">🗑️</button>
-        </div>
-      </li>
+  pagamentos.forEach((p, i) => {
+    const li = document.createElement("li");
+    li.innerHTML = `
+      ${p}
+      <button onclick="removerPagamento(${i})">X</button>
     `;
+    lista.appendChild(li);
   });
+
+  localStorage.setItem("pagamentos", JSON.stringify(pagamentos));
 }
 
-function renderizarSelectCategorias() {
-  const sel = document.getElementById("categoria");
-  sel.innerHTML = `<option value="">Categoria</option>`;
-  categorias.forEach(c => {
-    sel.innerHTML += `<option value="${c.id}">${c.nome}</option>`;
-  });
+function addPagamento() {
+  const val = document.getElementById("novoPagamento").value.trim();
+  if (!val || pagamentos.includes(val)) return;
+  pagamentos.push(val);
+  document.getElementById("novoPagamento").value = "";
+  renderPagamentos();
 }
 
-/* ================= LANÇAMENTOS ================= */
+function removerPagamento(i) {
+  if (!confirm("Excluir forma de pagamento?")) return;
+  pagamentos.splice(i, 1);
+  renderPagamentos();
+}
+
+/* =====================
+   LANÇAMENTOS
+===================== */
 
 function salvarLancamento() {
-  const tipo = tipoEl().value;
-  const valorTotal = parseFloat(valorEl().value.replace(",", "."));
-  const local = localEl().value;
-  const categoriaId = categoriaEl().value;
-  const parcelado = document.getElementById("parcelado").value;
-  const qtdParcelas = parseInt(document.getElementById("qtdParcelas").value) || 1;
+  const tipo = document.getElementById("tipo").value;
+  const valor = parseFloat(document.getElementById("valor").value.replace(",", "."));
+  const local = document.getElementById("local").value;
+  const categoria = document.getElementById("categoria").value;
+  const pagamento = pagamentoEl().value;
 
-  if (!tipo || !local || !categoriaId || isNaN(valorTotal) || valorTotal <= 0) {
-    mostrarMensagem("Preencha todos os campos corretamente.");
+  if (!tipo || isNaN(valor) || valor <= 0 || !local || !categoria || !pagamento) {
+    mostrarMensagem("Preencha todos os campos.");
     return;
   }
 
-  if (parcelado === "nao" || qtdParcelas === 1) {
+  const parcelas = document.getElementById("parcelado").checked
+    ? Number(document.getElementById("qtdParcelas").value)
+    : 1;
+
+  const grupo = parcelas > 1 ? crypto.randomUUID() : null;
+  const valorParcela = valor / parcelas;
+
+  for (let i = 1; i <= parcelas; i++) {
+    const data = new Date();
+    data.setMonth(data.getMonth() + (i - 1));
+
     lancamentos.push({
-      id: gerarId(),
-      grupo: null,
+      id: crypto.randomUUID(),
+      grupo,
       tipo,
-      valor: valorTotal,
+      valor: valorParcela,
       local,
-      categoriaId,
-      parcelaAtual: 1,
-      totalParcelas: 1,
-      data: new Date().toISOString()
+      categoria,
+      pagamento,
+      parcelaAtual: i,
+      totalParcelas: parcelas,
+      data: data.toISOString()
     });
-  } else {
-    const grupo = gerarId();
-    const valorParcela = +(valorTotal / qtdParcelas).toFixed(2);
-
-    for (let i = 0; i < qtdParcelas; i++) {
-      const d = new Date();
-      d.setMonth(d.getMonth() + i);
-
-      lancamentos.push({
-        id: gerarId(),
-        grupo,
-        tipo,
-        valor: valorParcela,
-        local,
-        categoriaId,
-        parcelaAtual: i + 1,
-        totalParcelas: qtdParcelas,
-        data: d.toISOString()
-      });
-    }
   }
 
-  salvarLancamentos();
-  limparFormulario();
+  salvarStorage();
   renderizar();
-}
-
-function excluir(id) {
-  const l = lancamentos.find(x => x.id === id);
-  if (!l) return;
-
-  if (!l.grupo) {
-    if (!confirm("Excluir lançamento?")) return;
-    lancamentos = lancamentos.filter(x => x.id !== id);
-  } else {
-    const op = prompt("1 = Somente esta parcela\n2 = Todas as parcelas");
-    if (op === "1") lancamentos = lancamentos.filter(x => x.id !== id);
-    else if (op === "2") lancamentos = lancamentos.filter(x => x.grupo !== l.grupo);
-    else return;
-  }
-
-  salvarLancamentos();
-  renderizar();
-}
-
-function limparFormulario() {
-  editandoId = null;
-  tipoEl().value = "";
-  valorEl().value = "";
-  localEl().value = "";
-  categoriaEl().value = "";
-  document.getElementById("parcelado").value = "nao";
-  document.getElementById("qtdParcelas").value = "";
-  document.getElementById("qtdParcelas").disabled = true;
-}
-
-function salvarLancamentos() {
-  localStorage.setItem("lancamentos", JSON.stringify(lancamentos));
 }
 
 function renderizar() {
   const lista = document.getElementById("lista");
   lista.innerHTML = "";
 
+  let filtrados = [...lancamentos];
+  if (filtroMesEl().value) {
+    filtrados = filtrados.filter(l => l.data.slice(0,7) === filtroMesEl().value);
+  }
+
   let ent = 0, sai = 0;
 
-  lancamentos.forEach(l => {
+  filtrados.forEach(l => {
     l.tipo === "entrada" ? ent += l.valor : sai += l.valor;
-    const cat = categorias.find(c => c.id === l.categoriaId)?.nome || "";
 
-    lista.innerHTML += `
-      <li>
-        <div>
-          <div>${l.local} (${cat})</div>
-          <div class="valor ${l.tipo}">R$ ${l.valor.toFixed(2)}</div>
-        </div>
-        <div>
-          <button onclick="excluir('${l.id}')">🗑️</button>
-        </div>
-      </li>
+    const li = document.createElement("li");
+    li.innerHTML = `
+      <strong>${l.tipo} - R$ ${l.valor.toFixed(2)}</strong>
+      <div>${l.local} (${l.pagamento})</div>
+      <small>${l.categoria}</small>
     `;
+    lista.appendChild(li);
   });
 
-  document.getElementById("totalEntradas").textContent = `R$ ${ent.toFixed(2)}`;
-  document.getElementById("totalSaidas").textContent = `R$ ${sai.toFixed(2)}`;
-  document.getElementById("saldo").textContent = `R$ ${(ent - sai).toFixed(2)}`;
+  document.getElementById("totalEntradas").innerText = ent.toFixed(2);
+  document.getElementById("totalSaidas").innerText = sai.toFixed(2);
+  document.getElementById("saldo").innerText = (ent - sai).toFixed(2);
 }
 
-/* HELPERS */
-const tipoEl = () => document.getElementById("tipo");
-const valorEl = () => document.getElementById("valor");
-const localEl = () => document.getElementById("local");
-const categoriaEl = () => document.getElementById("categoria");
+function salvarStorage() {
+  localStorage.setItem("lancamentos", JSON.stringify(lancamentos));
+}
 
-renderizarSelectCategorias();
+renderPagamentos();
 renderizar();
