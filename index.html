@@ -13,7 +13,7 @@
 
   <header class="topo">
     <h1>💰 Finanças</h1>
-    <span id="saldo" class="saldo">R$ 0,00</span>
+    <span id="saldo">R$ 0,00</span>
   </header>
 
   <section class="resumo">
@@ -28,6 +28,9 @@
   </section>
 
   <section class="formulario">
+
+    <button type="button" class="categorias-btn" onclick="abrirCategorias()">⚙️ Categorias</button>
+
     <select id="tipo">
       <option value="">Tipo</option>
       <option value="entrada">Entrada</option>
@@ -36,6 +39,10 @@
 
     <input type="text" id="valor" placeholder="Valor (ex: 5,99)">
     <input type="text" id="local" placeholder="Descrição / Local">
+
+    <select id="categoria">
+      <option value="">Categoria</option>
+    </select>
 
     <select id="parcelado">
       <option value="nao">À vista</option>
@@ -55,6 +62,22 @@
     <ul id="lista"></ul>
   </section>
 
+</div>
+
+<!-- MODAL CATEGORIAS -->
+<div class="modal" id="modalCategorias">
+  <div class="modal-content">
+    <h3>Categorias</h3>
+
+    <div class="nova-categoria">
+      <input type="text" id="novaCategoria" placeholder="Nova categoria">
+      <button onclick="adicionarCategoria()">Adicionar</button>
+    </div>
+
+    <ul id="listaCategorias"></ul>
+
+    <button class="fechar" onclick="fecharCategorias()">Fechar</button>
+  </div>
 </div>
 
 <script src="script.js"></script>
