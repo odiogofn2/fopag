@@ -15,12 +15,12 @@ let chartSaldo = null;       // (3) Saldo acumulado
 /* ================== INIT ================== */
 document.addEventListener('DOMContentLoaded', () => {
   iniciarListas();
-  renderCategorias();
-  renderPagamentos();
   configurarAbas();
   configurarFiltroMes();
 
-  renderLancamentos(); // já chama atualizarGraficos() no final
+  renderCategorias();
+  renderPagamentos();
+  renderLancamentos();
 });
 
 /* ================== UTIL ================== */
@@ -30,10 +30,13 @@ const set = (key, value) => localStorage.setItem(key, JSON.stringify(value));
 const gerarId = () => Date.now() + Math.floor(Math.random() * 1000);
 
 function parseValor(valor) {
+  // aceita 5,99 / 5.99 / 1.234,56
   const v = String(valor).trim();
   if (!v) throw 'Informe o valor';
+
   const n = parseFloat(v.replace(/\./g, '').replace(',', '.'));
   if (isNaN(n) || n <= 0) throw 'Valor inválido';
+
   return n;
 }
 
@@ -73,19 +76,17 @@ function configurarAbas() {
       const id = btn.dataset.aba;
       document.getElementById(id).classList.add('ativa');
 
-      // Atualiza gráficos quando entrar na aba "graficos"
       if (id === 'graficos') atualizarGraficos();
     });
   });
 }
 
-
-/* ================== FILTRO POR MÊS ================== */
+/* ================== FILTRO MÊS ================== */
 function configurarFiltroMes() {
   const el = document.getElementById('mesFiltro');
   if (!el) return;
 
-  // inicia com o mês atual, se vazio
+  // inicia com mês atual se vazio
   if (!el.value) {
     const hoje = new Date();
     const y = hoje.getFullYear();
@@ -95,6 +96,11 @@ function configurarFiltroMes() {
 
   el.addEventListener('change', () => {
     renderLancamentos();
+    // gráficos podem usar o filtro no gráfico 2
+    // só atualiza se estiver na aba gráficos
+    if (document.getElementById('graficos').classList.contains('ativa')) {
+      atualizarGraficos();
+    }
   });
 }
 
@@ -130,7 +136,7 @@ function renderCategorias() {
   set(STORAGE.categorias, categorias);
 }
 
-document.getElementById('btnAddCategoria').onclick = () => {
+document.getElementById('btnAddCategoria').addEventListener('click', () => {
   const input = document.getElementById('novaCategoria');
   const v = input.value.trim();
   if (!v) return alert('Informe a categoria');
@@ -142,8 +148,8 @@ document.getElementById('btnAddCategoria').onclick = () => {
   set(STORAGE.categorias, categorias);
   input.value = '';
   renderCategorias();
-  atualizarGraficos();
-};
+  atualizarGraficosSeAbaAtiva();
+});
 
 function editarCategoria(i) {
   const categorias = get(STORAGE.categorias);
@@ -164,6 +170,7 @@ function editarCategoria(i) {
 
   renderCategorias();
   renderLancamentos();
+  atualizarGraficosSeAbaAtiva();
 }
 
 function removerCategoria(i) {
@@ -187,6 +194,7 @@ function removerCategoria(i) {
 
   renderCategorias();
   renderLancamentos();
+  atualizarGraficosSeAbaAtiva();
 }
 
 /* ================== PAGAMENTOS (CRUD) ================== */
@@ -211,7 +219,7 @@ function renderPagamentos() {
   set(STORAGE.pagamentos, pagamentos);
 }
 
-document.getElementById('btnAddPagamento').onclick = () => {
+document.getElementById('btnAddPagamento').addEventListener('click', () => {
   const input = document.getElementById('novoPagamento');
   const v = input.value.trim();
   if (!v) return alert('Informe a forma de pagamento');
@@ -223,8 +231,8 @@ document.getElementById('btnAddPagamento').onclick = () => {
   set(STORAGE.pagamentos, pagamentos);
   input.value = '';
   renderPagamentos();
-  atualizarGraficos();
-};
+  atualizarGraficosSeAbaAtiva();
+});
 
 function editarPagamento(i) {
   const pagamentos = get(STORAGE.pagamentos);
@@ -245,6 +253,7 @@ function editarPagamento(i) {
 
   renderPagamentos();
   renderLancamentos();
+  atualizarGraficosSeAbaAtiva();
 }
 
 function removerPagamento(i) {
@@ -268,9 +277,10 @@ function removerPagamento(i) {
 
   renderPagamentos();
   renderLancamentos();
+  atualizarGraficosSeAbaAtiva();
 }
 
-/* ================== LANCAMENTOS ================== */
+/* ================== LANCAMENTOS: salvar / editar / excluir ================== */
 document.getElementById('formLancamento').addEventListener('submit', (e) => {
   e.preventDefault();
 
@@ -292,7 +302,7 @@ document.getElementById('formLancamento').addEventListener('submit', (e) => {
 
     let lista = get(STORAGE.lancamentos);
 
-    // Edita só esta parcela/registro
+    // editar só este registro
     if (editId) {
       lista = lista.map(l => {
         if (l.id !== editId) return l;
@@ -301,13 +311,15 @@ document.getElementById('formLancamento').addEventListener('submit', (e) => {
 
       set(STORAGE.lancamentos, lista);
       editId = null;
+
       e.target.reset();
       document.getElementById('parcelas').value = 1;
       renderLancamentos();
+      atualizarGraficosSeAbaAtiva();
       return;
     }
 
-    // Novo: gera parcelas por mês
+    // novo: gera parcelas por mês
     const grupoId = qtdParcelas > 1 ? gerarId() : null;
 
     const valorParcelaBase = +(valorTotal / qtdParcelas).toFixed(2);
@@ -341,6 +353,7 @@ document.getElementById('formLancamento').addEventListener('submit', (e) => {
     document.getElementById('parcelas').value = 1;
 
     renderLancamentos();
+    atualizarGraficosSeAbaAtiva();
 
   } catch (err) {
     alert(err);
@@ -381,8 +394,6 @@ function renderLancamentos() {
   document.getElementById('totalEntradas').innerText = `Entradas: R$ ${entradas.toFixed(2)}`;
   document.getElementById('totalSaidas').innerText = `Saídas: R$ ${saidas.toFixed(2)}`;
   document.getElementById('saldo').innerText = `Saldo: R$ ${(entradas - saidas).toFixed(2)}`;
-
-  atualizarGraficos();
 }
 
 function editarLancamento(id) {
@@ -390,10 +401,9 @@ function editarLancamento(id) {
   if (!l) return;
 
   editId = id;
-
   document.getElementById('tipo').value = l.tipo;
   document.getElementById('valor').value = l.valor.toFixed(2).replace('.', ',');
-  document.getElementById('parcelas').value = 1; // edição altera só esta parcela
+  document.getElementById('parcelas').value = 1;
   document.getElementById('local').value = l.local;
   document.getElementById('categoria').value = l.categoria;
   document.getElementById('pagamento').value = l.pagamento;
@@ -409,6 +419,7 @@ function excluirLancamento(id) {
     if (!confirm('Excluir este lançamento?')) return;
     set(STORAGE.lancamentos, lista.filter(x => x.id !== id));
     renderLancamentos();
+    atualizarGraficosSeAbaAtiva();
     return;
   }
 
@@ -422,21 +433,29 @@ function excluirLancamento(id) {
   if (escolha === '1') {
     set(STORAGE.lancamentos, lista.filter(x => x.id !== id));
     renderLancamentos();
+    atualizarGraficosSeAbaAtiva();
     return;
   }
 
   if (escolha === '2') {
     set(STORAGE.lancamentos, lista.filter(x => x.grupoId !== l.grupoId));
     renderLancamentos();
+    atualizarGraficosSeAbaAtiva();
     return;
   }
 }
 
 /* ================== GRÁFICOS ================== */
+function atualizarGraficosSeAbaAtiva() {
+  if (document.getElementById('graficos').classList.contains('ativa')) {
+    atualizarGraficos();
+  }
+}
+
 function atualizarGraficos() {
   const lista = get(STORAGE.lancamentos);
 
-  // (1) Entradas x Saídas por mês (sempre visão mensal, independente do filtro)
+  // (1) Entradas x Saídas por mês
   const meses = mesesOrdenados(lista);
   const entradasMes = [];
   const saidasMes = [];
@@ -451,7 +470,7 @@ function atualizarGraficos() {
     saidasMes.push(+s.toFixed(2));
   });
 
-  // (2) Gastos por categoria (respeita filtro do mês; se vazio, pega todas as saídas)
+  // (2) Gastos por categoria (respeita filtro)
   const mesFiltro = getMesFiltro();
   const baseCat = mesFiltro ? lista.filter(l => l.mes === mesFiltro) : lista;
   const gastosPorCategoria = {};
@@ -465,7 +484,7 @@ function atualizarGraficos() {
   const cats = Object.keys(gastosPorCategoria);
   const catsVals = cats.map(c => +gastosPorCategoria[c].toFixed(2));
 
-  // (3) Evolução do saldo acumulado (acumulado mês a mês)
+  // (3) Saldo acumulado
   const saldoAcumulado = [];
   let acum = 0;
   meses.forEach((m, idx) => {
@@ -474,7 +493,6 @@ function atualizarGraficos() {
     saldoAcumulado.push(+acum.toFixed(2));
   });
 
-  // Render/Update Charts
   renderChartMensal(meses, entradasMes, saidasMes);
   renderChartCategorias(cats, catsVals, mesFiltro);
   renderChartSaldo(meses, saldoAcumulado);
@@ -521,7 +539,6 @@ function renderChartCategorias(labels, values, mesFiltro) {
 
   if (chartCategorias) {
     chartCategorias.data = data;
-    chartCategorias.options.plugins.legend.display = true;
     chartCategorias.update();
     return;
   }
@@ -568,3 +585,5 @@ window.removerCategoria = removerCategoria;
 window.editarCategoria = editarCategoria;
 window.removerPagamento = removerPagamento;
 window.editarPagamento = editarPagamento;
+window.editarPagamento = editarPagamento;
+window.editarCategoria = editarCategoria;
