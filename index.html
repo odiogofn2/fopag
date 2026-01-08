@@ -3,84 +3,76 @@
 <head>
   <meta charset="UTF-8">
   <title>Controle Financeiro</title>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="icon" href="data:,">
 </head>
 <body>
 
 <div class="app">
 
-  <header class="header">
+  <header>
     <h1>Controle Financeiro</h1>
   </header>
 
   <nav class="tabs">
-    <button class="tab ativo" onclick="abrirAba('lancamentos', this)">Lançamentos</button>
-    <button class="tab" onclick="abrirAba('config', this)">Configurações</button>
+    <button class="active" onclick="trocarAba('lancamentos', this)">Lançamentos</button>
+    <button onclick="trocarAba('config', this)">Configurações</button>
   </nav>
 
-  <!-- ===== LANCAMENTOS ===== -->
+  <!-- ================= LANCAMENTOS ================= -->
   <section id="lancamentos" class="aba ativa">
 
-    <div class="card">
-      <div id="mensagem" class="mensagem"></div>
+    <form id="formLancamento">
 
-      <div class="form-grid">
-        <select id="tipo">
-          <option value="">Tipo</option>
-          <option value="entrada">Entrada</option>
-          <option value="saida">Saída</option>
-        </select>
+      <select id="tipo" required>
+        <option value="">Tipo</option>
+        <option value="entrada">Entrada</option>
+        <option value="saida">Saída</option>
+      </select>
 
-        <input id="valor" placeholder="Valor (ex: 5,99)">
-        <input id="local" placeholder="Descrição">
+      <input id="valor" placeholder="Valor (ex: 5,99)" required>
+      <input id="parcelas" type="number" min="1" value="1" placeholder="Parcelas">
+      <input id="local" placeholder="Local" required>
 
-        <select id="categoria"></select>
-        <select id="pagamento"></select>
-      </div>
+      <select id="categoria" required></select>
+      <select id="pagamento" required></select>
 
-      <div class="parcelas">
-        <label>
-          <input type="checkbox" id="parcelado"> Parcelado
-        </label>
-        <input type="number" id="qtdParcelas" placeholder="Parcelas" min="2" disabled>
-      </div>
+      <input type="month" id="mesFiltro" required>
 
-      <button class="btn-primario" onclick="salvarLancamento()">Salvar lançamento</button>
+      <button type="submit">Salvar</button>
+    </form>
+
+    <ul id="listaLancamentos"></ul>
+
+    <div class="totais">
+      <span id="totalEntradas"></span>
+      <span id="totalSaidas"></span>
+      <strong id="saldo"></strong>
     </div>
 
   </section>
 
-  <!-- ===== CONFIGURACOES ===== -->
+  <!-- ================= CONFIGURACOES ================= -->
   <section id="config" class="aba">
 
-    <div class="card">
-      <h2>Configurações</h2>
+    <h2>Categorias</h2>
+    <div class="box-config">
+      <input id="novaCategoria" placeholder="Nova categoria">
+      <button onclick="addCategoria()">Adicionar</button>
+      <ul id="listaCategorias"></ul>
+    </div>
 
-      <div class="config-grid">
-
-        <!-- CATEGORIAS -->
-        <div class="config-col">
-          <h3>Categorias</h3>
-          <input id="novaCategoria" placeholder="Nova categoria">
-          <button class="btn-secundario" onclick="addCategoria()">Adicionar</button>
-          <ul id="listaCategorias" class="lista-config"></ul>
-        </div>
-
-        <!-- PAGAMENTOS -->
-        <div class="config-col">
-          <h3>Formas de pagamento</h3>
-          <input id="novoPagamento" placeholder="Nova forma de pagamento">
-          <button class="btn-secundario" onclick="addPagamento()">Adicionar</button>
-          <ul id="listaPagamentos" class="lista-config"></ul>
-        </div>
-
-      </div>
+    <h2>Formas de Pagamento</h2>
+    <div class="box-config">
+      <input id="novoPagamento" placeholder="Nova forma de pagamento">
+      <button onclick="addPagamento()">Adicionar</button>
+      <ul id="listaPagamentos"></ul>
     </div>
 
   </section>
 
 </div>
 
-<script src="script.js"></script>
+<script src="js/app.js"></script>
 </body>
 </html>
