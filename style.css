@@ -4,9 +4,8 @@
 }
 
 body {
-  background: #0f172a;
   margin: 0;
-  padding: 0;
+  background: #020617;
   color: #fff;
 }
 
@@ -14,7 +13,6 @@ body {
   max-width: 480px;
   margin: auto;
   min-height: 100vh;
-  background: #020617;
 }
 
 .topo {
@@ -23,16 +21,6 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-}
-
-.topo h1 {
-  margin: 0;
-  font-size: 20px;
-}
-
-.saldo {
-  font-size: 18px;
-  font-weight: bold;
 }
 
 .resumo {
@@ -44,9 +32,9 @@ body {
 .card {
   flex: 1;
   background: #020617;
-  border-radius: 12px;
   padding: 15px;
-  box-shadow: 0 5px 15px rgba(0,0,0,.4);
+  border-radius: 12px;
+  box-shadow: 0 6px 18px rgba(0,0,0,.4);
 }
 
 .card span {
@@ -56,17 +44,12 @@ body {
 
 .card strong {
   font-size: 18px;
-  display: block;
   margin-top: 5px;
+  display: block;
 }
 
-.card.entrada strong {
-  color: #22c55e;
-}
-
-.card.saida strong {
-  color: #ef4444;
-}
+.card.entrada strong { color: #22c55e; }
+.card.saida strong { color: #ef4444; }
 
 .formulario {
   padding: 15px;
@@ -101,19 +84,19 @@ body {
   color: #fff;
 }
 
+.categorias-btn {
+  background: #1e293b;
+  color: #fff;
+}
+
 .mensagem {
-  color: #facc15;
-  font-size: 13px;
   text-align: center;
+  font-size: 13px;
+  color: #facc15;
 }
 
 .lista {
   padding: 15px;
-}
-
-.lista h2 {
-  font-size: 16px;
-  margin-bottom: 10px;
 }
 
 .lista ul {
@@ -132,26 +115,55 @@ body {
   align-items: center;
 }
 
-.lista .info {
-  font-size: 14px;
-}
-
-.lista .valor {
-  font-weight: bold;
-}
-
-.lista .entrada {
-  color: #22c55e;
-}
-
-.lista .saida {
-  color: #ef4444;
-}
+.valor.entrada { color: #22c55e; }
+.valor.saida { color: #ef4444; }
 
 .lista button {
   background: none;
   border: none;
   color: #94a3b8;
-  margin-left: 8px;
   cursor: pointer;
+  font-size: 16px;
+}
+
+/* MODAL */
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.7);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 20;
+}
+
+.modal-content {
+  background: #020617;
+  width: 90%;
+  max-width: 400px;
+  padding: 20px;
+  border-radius: 12px;
+}
+
+.nova-categoria {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 15px;
+}
+
+#listaCategorias {
+  list-style: none;
+  padding: 0;
+}
+
+#listaCategorias li {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px solid #1e293b;
+}
+
+.fechar {
+  width: 100%;
+  margin-top: 10px;
 }
