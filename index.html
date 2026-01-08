@@ -1,163 +1,62 @@
-let lancamentos = JSON.parse(localStorage.getItem("lancamentos")) || [];
-let editandoId = null;
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Controle Financeiro</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="data:,">
+</head>
+<body>
 
-const msg = document.getElementById("mensagem");
+<div class="app">
 
-document.getElementById("parcelado").addEventListener("change", e => {
-  document.getElementById("qtdParcelas").disabled = e.target.value !== "sim";
-});
+  <header class="topo">
+    <h1>💰 Finanças</h1>
+    <span id="saldo" class="saldo">R$ 0,00</span>
+  </header>
 
-function gerarId() {
-  return Date.now().toString(36) + Math.random().toString(36).substr(2);
-}
+  <section class="resumo">
+    <div class="card entrada">
+      <span>Entradas</span>
+      <strong id="totalEntradas">R$ 0,00</strong>
+    </div>
+    <div class="card saida">
+      <span>Saídas</span>
+      <strong id="totalSaidas">R$ 0,00</strong>
+    </div>
+  </section>
 
-function mostrarMensagem(texto) {
-  msg.textContent = texto;
-  setTimeout(() => msg.textContent = "", 3000);
-}
+  <section class="formulario">
+    <select id="tipo">
+      <option value="">Tipo</option>
+      <option value="entrada">Entrada</option>
+      <option value="saida">Saída</option>
+    </select>
 
-function salvarLancamento() {
-  const tipo = tipoEl().value;
-  const valorTotal = parseFloat(valorEl().value.replace(",", "."));
-  const local = localEl().value;
-  const parcelado = document.getElementById("parcelado").value;
-  const qtdParcelas = parseInt(document.getElementById("qtdParcelas").value) || 1;
+    <input type="text" id="valor" placeholder="Valor (ex: 5,99)">
+    <input type="text" id="local" placeholder="Descrição / Local">
 
-  if (!tipo || isNaN(valorTotal) || valorTotal <= 0 || !local) {
-    mostrarMensagem("Preencha todos os campos corretamente.");
-    return;
-  }
+    <select id="parcelado">
+      <option value="nao">À vista</option>
+      <option value="sim">Parcelado</option>
+    </select>
 
-  // edição simples (sem parcelamento)
-  if (editandoId) {
-    lancamentos = lancamentos.map(l =>
-      l.id === editandoId
-        ? { ...l, tipo, valor: valorTotal, local }
-        : l
-    );
-    salvarStorage();
-    limparFormulario();
-    renderizar();
-    return;
-  }
+    <input type="number" id="qtdParcelas" placeholder="Parcelas" disabled>
 
-  // À VISTA
-  if (parcelado === "nao" || qtdParcelas === 1) {
-    lancamentos.push({
-      id: gerarId(),
-      grupo: null,
-      tipo,
-      valor: valorTotal,
-      local,
-      parcelaAtual: 1,
-      totalParcelas: 1,
-      data: new Date().toISOString()
-    });
-  }
-  // PARCELADO REAL
-  else {
-    const grupoId = gerarId();
-    const valorParcela = +(valorTotal / qtdParcelas).toFixed(2);
+    <button onclick="salvarLancamento()">Salvar</button>
+    <button class="cancelar" onclick="cancelarEdicao()">Cancelar</button>
 
-    for (let i = 0; i < qtdParcelas; i++) {
-      const data = new Date();
-      data.setMonth(data.getMonth() + i);
+    <div id="mensagem" class="mensagem"></div>
+  </section>
 
-      lancamentos.push({
-        id: gerarId(),
-        grupo: grupoId,
-        tipo,
-        valor: valorParcela,
-        local,
-        parcelaAtual: i + 1,
-        totalParcelas: qtdParcelas,
-        data: data.toISOString()
-      });
-    }
-  }
+  <section class="lista">
+    <h2>Lançamentos</h2>
+    <ul id="lista"></ul>
+  </section>
 
-  salvarStorage();
-  limparFormulario();
-  renderizar();
-}
+</div>
 
-function editar(id) {
-  const l = lancamentos.find(x => x.id === id);
-  if (!l) return;
-
-  editandoId = id;
-  tipoEl().value = l.tipo;
-  valorEl().value = l.valor;
-  localEl().value = l.local;
-
-  document.getElementById("parcelado").value = "nao";
-  document.getElementById("qtdParcelas").disabled = true;
-}
-
-function excluir(id) {
-  if (!confirm("Excluir este lançamento?")) return;
-  lancamentos = lancamentos.filter(l => l.id !== id);
-  salvarStorage();
-  renderizar();
-}
-
-function cancelarEdicao() {
-  limparFormulario();
-}
-
-function limparFormulario() {
-  editandoId = null;
-  tipoEl().value = "";
-  valorEl().value = "";
-  localEl().value = "";
-  document.getElementById("parcelado").value = "nao";
-  document.getElementById("qtdParcelas").value = "";
-  document.getElementById("qtdParcelas").disabled = true;
-}
-
-function salvarStorage() {
-  localStorage.setItem("lancamentos", JSON.stringify(lancamentos));
-}
-
-function renderizar() {
-  const lista = document.getElementById("lista");
-  lista.innerHTML = "";
-
-  let entradas = 0, saidas = 0;
-
-  lancamentos
-    .sort((a, b) => new Date(a.data) - new Date(b.data))
-    .forEach(l => {
-      l.tipo === "entrada" ? entradas += l.valor : saidas += l.valor;
-
-      const parcelaInfo =
-        l.totalParcelas > 1
-          ? ` (${l.parcelaAtual}/${l.totalParcelas})`
-          : "";
-
-      lista.innerHTML += `
-        <li>
-          <div class="info">
-            <div>${l.local}${parcelaInfo}</div>
-            <div class="valor ${l.tipo}">
-              R$ ${l.valor.toFixed(2)}
-            </div>
-          </div>
-          <div>
-            <button onclick="editar('${l.id}')">✏️</button>
-            <button onclick="excluir('${l.id}')">🗑️</button>
-          </div>
-        </li>
-      `;
-    });
-
-  document.getElementById("totalEntradas").textContent = `R$ ${entradas.toFixed(2)}`;
-  document.getElementById("totalSaidas").textContent = `R$ ${saidas.toFixed(2)}`;
-  document.getElementById("saldo").textContent = `R$ ${(entradas - saidas).toFixed(2)}`;
-}
-
-const tipoEl = () => document.getElementById("tipo");
-const valorEl = () => document.getElementById("valor");
-const localEl = () => document.getElementById("local");
-
-renderizar();
+<script src="script.js"></script>
+</body>
+</html>
