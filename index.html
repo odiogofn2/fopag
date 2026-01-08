@@ -1,84 +1,101 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <title>Controle Financeiro Simples</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #f4f6f8;
-      padding: 20px;
-      max-width: 600px;
-      margin: auto;
-    }
+<meta charset="UTF-8">
+<title>Controle Financeiro</title>
 
-    h1 {
-      text-align: center;
-    }
+<style>
+body {
+  font-family: Arial, sans-serif;
+  background: linear-gradient(135deg, #1e3c72, #2a5298);
+  padding: 20px;
+}
 
-    .box {
-      background: #fff;
-      padding: 15px;
-      border-radius: 8px;
-      margin-bottom: 15px;
-    }
+.container {
+  max-width: 700px;
+  margin: auto;
+}
 
-    label {
-      display: block;
-      margin-top: 10px;
-      font-weight: bold;
-    }
+h1 {
+  text-align: center;
+  color: white;
+}
 
-    input, select, button {
-      width: 100%;
-      padding: 8px;
-      margin-top: 5px;
-      border-radius: 5px;
-      border: 1px solid #ccc;
-    }
+.card {
+  background: white;
+  padding: 15px;
+  border-radius: 10px;
+  margin-bottom: 15px;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.15);
+}
 
-    button {
-      background: #2d89ef;
-      color: white;
-      border: none;
-      margin-top: 15px;
-      cursor: pointer;
-    }
+.saldo {
+  font-size: 22px;
+  text-align: center;
+  font-weight: bold;
+}
 
-    button:hover {
-      opacity: 0.9;
-    }
+label {
+  display: block;
+  margin-top: 10px;
+  font-weight: bold;
+}
 
-    .saldo {
-      font-size: 20px;
-      text-align: center;
-      margin-bottom: 10px;
-    }
+input, select, button {
+  width: 100%;
+  padding: 8px;
+  margin-top: 5px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+}
 
-    .entrada { color: green; }
-    .saida { color: red; }
+button {
+  background: #2a5298;
+  color: white;
+  border: none;
+  cursor: pointer;
+  margin-top: 12px;
+}
 
-    ul {
-      list-style: none;
-      padding: 0;
-    }
+button:hover {
+  opacity: 0.9;
+}
 
-    li {
-      border-bottom: 1px solid #eee;
-      padding: 8px 0;
-      font-size: 14px;
-    }
-  </style>
+.lancamento {
+  border-left: 6px solid;
+  padding: 10px;
+  margin-bottom: 10px;
+  border-radius: 6px;
+}
+
+.entrada { border-color: green; }
+.saida { border-color: red; }
+
+.acoes {
+  display: flex;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.acoes button {
+  flex: 1;
+  font-size: 12px;
+}
+</style>
 </head>
+
 <body>
+<div class="container">
 
 <h1>💰 Controle Financeiro</h1>
 
-<div class="box">
+<div class="card">
   <div class="saldo" id="saldo">Saldo: R$ 0,00</div>
 </div>
 
-<div class="box">
+<div class="card">
+  <input type="hidden" id="editandoId">
+
   <label>Tipo</label>
   <select id="tipo">
     <option value="entrada">Entrada</option>
@@ -91,80 +108,118 @@
   <label>Descrição</label>
   <input type="text" id="descricao">
 
-  <button onclick="adicionar()">Incluir lançamento</button>
+  <button onclick="salvarLancamento()">Salvar</button>
 </div>
 
-<div class="box">
+<div class="card">
   <h3>Lançamentos</h3>
-  <ul id="lista"></ul>
+  <div id="lista"></div>
+</div>
+
 </div>
 
 <script>
-  let lancamentos = JSON.parse(localStorage.getItem("lancamentos")) || [];
+let lancamentos = JSON.parse(localStorage.getItem("lancamentos")) || [];
 
-  function salvar() {
-    localStorage.setItem("lancamentos", JSON.stringify(lancamentos));
+function gerarId() {
+  return Date.now() + Math.random().toString(16).slice(2);
+}
+
+function salvarStorage() {
+  localStorage.setItem("lancamentos", JSON.stringify(lancamentos));
+}
+
+function formatar(valor) {
+  return valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
+function salvarLancamento() {
+  const tipo = tipoInput.value;
+  const valor = parseFloat(valorInput.value);
+  const descricao = descricaoInput.value;
+  const editandoId = document.getElementById("editandoId").value;
+
+  if (!valor || !descricao) {
+    alert("Preencha todos os campos");
+    return;
   }
 
-  function formatar(valor) {
-    return valor.toLocaleString("pt-BR", {
-      style: "currency",
-      currency: "BRL"
-    });
-  }
-
-  function atualizarTela() {
-    const lista = document.getElementById("lista");
-    lista.innerHTML = "";
-
-    let saldo = 0;
-
-    lancamentos.forEach(l => {
-      saldo += l.tipo === "entrada" ? l.valor : -l.valor;
-
-      const li = document.createElement("li");
-      li.className = l.tipo;
-      li.innerHTML = `
-        <strong>${l.descricao}</strong><br>
-        ${l.data}<br>
-        ${l.tipo === "entrada" ? "+" : "-"} ${formatar(l.valor)}
-      `;
-      lista.appendChild(li);
-    });
-
-    document.getElementById("saldo").innerText =
-      "Saldo: " + formatar(saldo);
-  }
-
-  function adicionar() {
-    const tipo = document.getElementById("tipo").value;
-    const valor = parseFloat(document.getElementById("valor").value);
-    const descricao = document.getElementById("descricao").value;
-
-    if (!valor || !descricao) {
-      alert("Preencha valor e descrição");
-      return;
-    }
-
-    const data = new Date().toLocaleString("pt-BR", {
-      timeZone: "America/Sao_Paulo"
-    });
-
+  if (editandoId) {
+    const l = lancamentos.find(x => x.id === editandoId);
+    l.tipo = tipo;
+    l.valor = valor;
+    l.descricao = descricao;
+  } else {
     lancamentos.unshift({
+      id: gerarId(),
       tipo,
       valor,
       descricao,
-      data
+      data: new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" }),
+
+      // BASE PARA PARCELAS
+      parcelado: false,
+      totalParcelas: 1,
+      parcelaAtual: 1,
+      grupoParcelamentoId: null
     });
-
-    salvar();
-    atualizarTela();
-
-    document.getElementById("valor").value = "";
-    document.getElementById("descricao").value = "";
   }
 
+  document.getElementById("editandoId").value = "";
+  valorInput.value = "";
+  descricaoInput.value = "";
+
+  salvarStorage();
   atualizarTela();
+}
+
+function editar(id) {
+  const l = lancamentos.find(x => x.id === id);
+  tipoInput.value = l.tipo;
+  valorInput.value = l.valor;
+  descricaoInput.value = l.descricao;
+  document.getElementById("editandoId").value = id;
+}
+
+function excluir(id) {
+  if (!confirm("Excluir lançamento?")) return;
+  lancamentos = lancamentos.filter(l => l.id !== id);
+  salvarStorage();
+  atualizarTela();
+}
+
+function atualizarTela() {
+  lista.innerHTML = "";
+  let saldo = 0;
+
+  lancamentos.forEach(l => {
+    saldo += l.tipo === "entrada" ? l.valor : -l.valor;
+
+    const div = document.createElement("div");
+    div.className = `lancamento ${l.tipo}`;
+    div.innerHTML = `
+      <strong>${l.descricao}</strong><br>
+      ${l.data}<br>
+      ${l.tipo === "entrada" ? "+" : "-"} ${formatar(l.valor)}
+      <div class="acoes">
+        <button onclick="editar('${l.id}')">✏️ Editar</button>
+        <button onclick="excluir('${l.id}')">🗑 Excluir</button>
+      </div>
+    `;
+    lista.appendChild(div);
+  });
+
+  saldoEl.innerText = "Saldo: " + formatar(saldo);
+}
+
+/* atalhos DOM */
+const tipoInput = document.getElementById("tipo");
+const valorInput = document.getElementById("valor");
+const descricaoInput = document.getElementById("descricao");
+const lista = document.getElementById("lista");
+const saldoEl = document.getElementById("saldo");
+
+atualizarTela();
 </script>
 
 </body>
