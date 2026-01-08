@@ -7,14 +7,20 @@ const STORAGE = {
 
 let editId = null;
 
+/* ================== CHARTS ================== */
+let chartMensal = null;      // (1) Entradas x Saídas por mês
+let chartCategorias = null;  // (2) Gastos por categoria
+let chartSaldo = null;       // (3) Saldo acumulado
+
 /* ================== INIT ================== */
 document.addEventListener('DOMContentLoaded', () => {
   iniciarListas();
   renderCategorias();
   renderPagamentos();
-  renderLancamentos();
   configurarAbas();
   configurarFiltroMes();
+
+  renderLancamentos(); // já chama atualizarGraficos() no final
 });
 
 /* ================== UTIL ================== */
@@ -24,7 +30,6 @@ const set = (key, value) => localStorage.setItem(key, JSON.stringify(value));
 const gerarId = () => Date.now() + Math.floor(Math.random() * 1000);
 
 function parseValor(valor) {
-  // aceita 5,99 / 5.99 / 1.234,56
   const v = String(valor).trim();
   if (!v) throw 'Informe o valor';
   const n = parseFloat(v.replace(/\./g, '').replace(',', '.'));
@@ -50,6 +55,11 @@ function getMesFiltro() {
   return el ? el.value : '';
 }
 
+function mesesOrdenados(lista) {
+  const s = new Set(lista.map(l => l.mes).filter(Boolean));
+  return Array.from(s).sort((a, b) => a.localeCompare(b));
+}
+
 /* ================== ABAS ================== */
 function configurarAbas() {
   const tabs = document.querySelectorAll('.tabs button');
@@ -61,6 +71,9 @@ function configurarAbas() {
       btn.classList.add('active');
       const id = btn.dataset.aba || (btn.getAttribute('onclick')?.includes('configuracoes') ? 'configuracoes' : 'lancamentos');
       document.getElementById(id).classList.add('ativa');
+
+      // ao trocar de aba, garante que os gráficos renderizem bem se necessário
+      if (id === 'lancamentos') atualizarGraficos();
     });
   });
 }
@@ -70,7 +83,7 @@ function configurarFiltroMes() {
   const el = document.getElementById('mesFiltro');
   if (!el) return;
 
-  // opcional: já inicia com o mês atual
+  // inicia com o mês atual, se vazio
   if (!el.value) {
     const hoje = new Date();
     const y = hoje.getFullYear();
@@ -78,7 +91,9 @@ function configurarFiltroMes() {
     el.value = `${y}-${m}`;
   }
 
-  el.addEventListener('change', () => renderLancamentos());
+  el.addEventListener('change', () => {
+    renderLancamentos();
+  });
 }
 
 /* ================== LISTAS PADRÃO ================== */
@@ -125,6 +140,7 @@ document.getElementById('btnAddCategoria').onclick = () => {
   set(STORAGE.categorias, categorias);
   input.value = '';
   renderCategorias();
+  atualizarGraficos();
 };
 
 function editarCategoria(i) {
@@ -155,7 +171,7 @@ function removerCategoria(i) {
   const lanc = get(STORAGE.lancamentos);
   const emUso = lanc.some(l => l.categoria === nome);
   if (emUso) {
-    const ok = confirm(`A categoria "${nome}" está em uso em lançamentos. Excluir mesmo assim? (os lançamentos ficarão com categoria vazia)`);
+    const ok = confirm(`A categoria "${nome}" está em uso. Excluir mesmo assim? (os lançamentos ficarão com categoria vazia)`);
     if (!ok) return;
   }
 
@@ -205,6 +221,7 @@ document.getElementById('btnAddPagamento').onclick = () => {
   set(STORAGE.pagamentos, pagamentos);
   input.value = '';
   renderPagamentos();
+  atualizarGraficos();
 };
 
 function editarPagamento(i) {
@@ -235,7 +252,7 @@ function removerPagamento(i) {
   const lanc = get(STORAGE.lancamentos);
   const emUso = lanc.some(l => l.pagamento === nome);
   if (emUso) {
-    const ok = confirm(`"${nome}" está em uso em lançamentos. Excluir mesmo assim? (os lançamentos ficarão com pagamento vazio)`);
+    const ok = confirm(`"${nome}" está em uso. Excluir mesmo assim? (os lançamentos ficarão com pagamento vazio)`);
     if (!ok) return;
   }
 
@@ -334,10 +351,7 @@ function renderLancamentos() {
   ul.innerHTML = '';
 
   const mesFiltro = getMesFiltro();
-
-  const filtrada = mesFiltro
-    ? lista.filter(l => l.mes === mesFiltro)
-    : lista;
+  const filtrada = mesFiltro ? lista.filter(l => l.mes === mesFiltro) : lista;
 
   let entradas = 0;
   let saidas = 0;
@@ -365,6 +379,8 @@ function renderLancamentos() {
   document.getElementById('totalEntradas').innerText = `Entradas: R$ ${entradas.toFixed(2)}`;
   document.getElementById('totalSaidas').innerText = `Saídas: R$ ${saidas.toFixed(2)}`;
   document.getElementById('saldo').innerText = `Saldo: R$ ${(entradas - saidas).toFixed(2)}`;
+
+  atualizarGraficos();
 }
 
 function editarLancamento(id) {
@@ -412,6 +428,135 @@ function excluirLancamento(id) {
     renderLancamentos();
     return;
   }
+}
+
+/* ================== GRÁFICOS ================== */
+function atualizarGraficos() {
+  const lista = get(STORAGE.lancamentos);
+
+  // (1) Entradas x Saídas por mês (sempre visão mensal, independente do filtro)
+  const meses = mesesOrdenados(lista);
+  const entradasMes = [];
+  const saidasMes = [];
+
+  meses.forEach(m => {
+    let e = 0, s = 0;
+    lista.filter(l => l.mes === m).forEach(l => {
+      if (l.tipo === 'entrada') e += l.valor;
+      else s += l.valor;
+    });
+    entradasMes.push(+e.toFixed(2));
+    saidasMes.push(+s.toFixed(2));
+  });
+
+  // (2) Gastos por categoria (respeita filtro do mês; se vazio, pega todas as saídas)
+  const mesFiltro = getMesFiltro();
+  const baseCat = mesFiltro ? lista.filter(l => l.mes === mesFiltro) : lista;
+  const gastosPorCategoria = {};
+
+  baseCat.forEach(l => {
+    if (l.tipo !== 'saida') return;
+    const c = l.categoria || 'Sem categoria';
+    gastosPorCategoria[c] = (gastosPorCategoria[c] || 0) + l.valor;
+  });
+
+  const cats = Object.keys(gastosPorCategoria);
+  const catsVals = cats.map(c => +gastosPorCategoria[c].toFixed(2));
+
+  // (3) Evolução do saldo acumulado (acumulado mês a mês)
+  const saldoAcumulado = [];
+  let acum = 0;
+  meses.forEach((m, idx) => {
+    const net = entradasMes[idx] - saidasMes[idx];
+    acum += net;
+    saldoAcumulado.push(+acum.toFixed(2));
+  });
+
+  // Render/Update Charts
+  renderChartMensal(meses, entradasMes, saidasMes);
+  renderChartCategorias(cats, catsVals, mesFiltro);
+  renderChartSaldo(meses, saldoAcumulado);
+}
+
+function renderChartMensal(labels, entradas, saidas) {
+  const el = document.getElementById('graficoMensal');
+  if (!el || !window.Chart) return;
+
+  const data = {
+    labels,
+    datasets: [
+      { label: 'Entradas', data: entradas },
+      { label: 'Saídas', data: saidas }
+    ]
+  };
+
+  if (chartMensal) {
+    chartMensal.data = data;
+    chartMensal.update();
+    return;
+  }
+
+  chartMensal = new Chart(el, {
+    type: 'bar',
+    data,
+    options: {
+      responsive: true,
+      plugins: { legend: { position: 'top' } }
+    }
+  });
+}
+
+function renderChartCategorias(labels, values, mesFiltro) {
+  const el = document.getElementById('graficoCategorias');
+  if (!el || !window.Chart) return;
+
+  const titulo = mesFiltro ? `Gastos por Categoria (${mesFiltro})` : 'Gastos por Categoria (Todos os meses)';
+
+  const data = {
+    labels,
+    datasets: [{ label: titulo, data: values }]
+  };
+
+  if (chartCategorias) {
+    chartCategorias.data = data;
+    chartCategorias.options.plugins.legend.display = true;
+    chartCategorias.update();
+    return;
+  }
+
+  chartCategorias = new Chart(el, {
+    type: 'doughnut',
+    data,
+    options: {
+      responsive: true,
+      plugins: { legend: { position: 'right' } }
+    }
+  });
+}
+
+function renderChartSaldo(labels, values) {
+  const el = document.getElementById('graficoSaldo');
+  if (!el || !window.Chart) return;
+
+  const data = {
+    labels,
+    datasets: [{ label: 'Saldo acumulado', data: values, tension: 0.25 }]
+  };
+
+  if (chartSaldo) {
+    chartSaldo.data = data;
+    chartSaldo.update();
+    return;
+  }
+
+  chartSaldo = new Chart(el, {
+    type: 'line',
+    data,
+    options: {
+      responsive: true,
+      plugins: { legend: { position: 'top' } }
+    }
+  });
 }
 
 /* ===== Expor funções globais usadas em onclick ===== */
