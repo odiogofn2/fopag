@@ -9,73 +9,75 @@
 
 <div class="app">
 
-  <h1>💰 Controle Financeiro</h1>
+  <header class="header">
+    <h1>Controle Financeiro</h1>
+  </header>
 
-  <!-- ABAS -->
-  <div class="tabs">
-    <button class="tab ativo" onclick="abrirAba('lancamentos')">Lançamentos</button>
-    <button class="tab" onclick="abrirAba('config')">Configurações</button>
-  </div>
+  <nav class="tabs">
+    <button class="tab ativo" onclick="abrirAba('lancamentos', this)">Lançamentos</button>
+    <button class="tab" onclick="abrirAba('config', this)">Configurações</button>
+  </nav>
 
-  <!-- ================= LANCAMENTOS ================= -->
-  <div id="lancamentos" class="aba ativa">
+  <!-- ===== LANCAMENTOS ===== -->
+  <section id="lancamentos" class="aba ativa">
 
-    <div id="mensagem"></div>
+    <div class="card">
+      <div id="mensagem" class="mensagem"></div>
 
-    <div class="formulario">
-      <select id="tipo">
-        <option value="">Tipo</option>
-        <option value="entrada">Entrada</option>
-        <option value="saida">Saída</option>
-      </select>
+      <div class="form-grid">
+        <select id="tipo">
+          <option value="">Tipo</option>
+          <option value="entrada">Entrada</option>
+          <option value="saida">Saída</option>
+        </select>
 
-      <input id="valor" placeholder="Valor (5,99)" />
-      <input id="local" placeholder="Descrição / Local" />
+        <input id="valor" placeholder="Valor (ex: 5,99)">
+        <input id="local" placeholder="Descrição">
 
-      <select id="categoria"></select>
-      <select id="pagamento"></select>
+        <select id="categoria"></select>
+        <select id="pagamento"></select>
+      </div>
 
       <div class="parcelas">
         <label>
           <input type="checkbox" id="parcelado"> Parcelado
         </label>
-        <input type="number" id="qtdParcelas" min="2" placeholder="Parcelas" disabled>
+        <input type="number" id="qtdParcelas" placeholder="Parcelas" min="2" disabled>
       </div>
 
-      <button onclick="salvarLancamento()">Salvar</button>
+      <button class="btn-primario" onclick="salvarLancamento()">Salvar lançamento</button>
     </div>
 
-    <div class="filtro-mes">
-      <input type="month" id="filtroMes">
+  </section>
+
+  <!-- ===== CONFIGURACOES ===== -->
+  <section id="config" class="aba">
+
+    <div class="card">
+      <h2>Configurações</h2>
+
+      <div class="config-grid">
+
+        <!-- CATEGORIAS -->
+        <div class="config-col">
+          <h3>Categorias</h3>
+          <input id="novaCategoria" placeholder="Nova categoria">
+          <button class="btn-secundario" onclick="addCategoria()">Adicionar</button>
+          <ul id="listaCategorias" class="lista-config"></ul>
+        </div>
+
+        <!-- PAGAMENTOS -->
+        <div class="config-col">
+          <h3>Formas de pagamento</h3>
+          <input id="novoPagamento" placeholder="Nova forma de pagamento">
+          <button class="btn-secundario" onclick="addPagamento()">Adicionar</button>
+          <ul id="listaPagamentos" class="lista-config"></ul>
+        </div>
+
+      </div>
     </div>
 
-    <div class="resumo">
-      <div>Entradas: <span id="totalEntradas">0</span></div>
-      <div>Saídas: <span id="totalSaidas">0</span></div>
-      <div>Saldo: <span id="saldo">0</span></div>
-    </div>
-
-    <ul id="lista"></ul>
-  </div>
-
-  <!-- ================= CONFIGURACOES ================= -->
-  <div id="config" class="aba">
-
-    <div class="config-bloco">
-      <h3>📂 Categorias</h3>
-      <input id="novaCategoria" placeholder="Nova categoria">
-      <button onclick="addCategoria()">Adicionar</button>
-      <ul id="listaCategorias"></ul>
-    </div>
-
-    <div class="config-bloco">
-      <h3>💳 Formas de Pagamento</h3>
-      <input id="novoPagamento" placeholder="Nova forma de pagamento">
-      <button onclick="addPagamento()">Adicionar</button>
-      <ul id="listaPagamentos"></ul>
-    </div>
-
-  </div>
+  </section>
 
 </div>
 
