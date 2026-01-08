@@ -2,7 +2,9 @@
 const SUPABASE_URL = "https://fwzdxtpkirkyygzoezjx.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ3emR4dHBraXJreXlnem9lemp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc4OTE3MjcsImV4cCI6MjA4MzQ2NzcyN30.JhZaeArVoReH150Z6seCKu8AM1qw9PeZayLfTtfJqIQ";
 
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// SDK fica em window.supabase (objeto). Cliente fica em window.__sb (único).
+window.__sb = window.__sb || window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const sb = window.__sb;
 
 /* ================== ESTADO ================== */
 let sessionUser = null;
@@ -24,14 +26,12 @@ document.addEventListener("DOMContentLoaded", async () => {
   configurarFiltroMes();
   configurarAuthUI();
 
-  // carrega sessão atual
-  const { data } = await supabase.auth.getSession();
+  const { data } = await sb.auth.getSession();
   sessionUser = data.session?.user || null;
 
   await aplicarEstadoAuth();
 
-  // escuta login/logout
-  supabase.auth.onAuthStateChange(async (_event, newSession) => {
+  sb.auth.onAuthStateChange(async (_event, newSession) => {
     sessionUser = newSession?.user || null;
     await aplicarEstadoAuth();
   });
@@ -101,60 +101,47 @@ function configurarAuthUI() {
     const pass = document.getElementById("authPass").value;
 
     // tenta login
-    let res = await supabase.auth.signInWithPassword({ email, password: pass });
+    let res = await sb.auth.signInWithPassword({ email, password: pass });
 
     // se falhar, cria conta
     if (res.error) {
-      const sign = await supabase.auth.signUp({ email, password: pass });
+      const sign = await sb.auth.signUp({ email, password: pass });
       if (sign.error) return alert(sign.error.message);
 
-      return alert("Conta criada! Se seu Supabase exigir confirmação por e-mail, confirme e tente entrar novamente.");
+      return alert("Conta criada! Se exigir confirmação por e-mail, confirme e tente entrar novamente.");
     }
   });
 
   btnLogout.addEventListener("click", async () => {
-    await supabase.auth.signOut();
+    await sb.auth.signOut();
   });
 
   btnLogout2.addEventListener("click", async () => {
-    await supabase.auth.signOut();
+    await sb.auth.signOut();
   });
 }
 
 async function aplicarEstadoAuth() {
   const logado = !!sessionUser;
 
-  // deslogado: mostra login, esconde app
   show("authBox", !logado);
   show("tabs", logado);
   show("lancamentos", logado);
   show("graficos", logado);
   show("configuracoes", logado);
 
-  // se logado, esconde botão logout do authbox (porque authbox some)
-  document.getElementById("btnLogout").style.display = logado ? "" : "none";
-
   if (!logado) return;
 
-  // garantir que a aba inicial esteja correta
   ativarAba("lancamentos");
 
-  // carregar dados do BD
   await carregarTudo();
-
-  // renderizar
   renderTudo();
 }
 
 /* ================== ABAS ================== */
 function configurarAbas() {
   const tabs = document.querySelectorAll(".tabs button");
-
-  tabs.forEach(btn => {
-    btn.addEventListener("click", () => {
-      ativarAba(btn.dataset.aba);
-    });
-  });
+  tabs.forEach(btn => btn.addEventListener("click", () => ativarAba(btn.dataset.aba)));
 }
 
 function ativarAba(id) {
@@ -182,9 +169,7 @@ function configurarFiltroMes() {
 
   el.addEventListener("change", () => {
     renderLancamentos();
-    if (document.getElementById("graficos").classList.contains("ativa")) {
-      atualizarGraficos();
-    }
+    if (document.getElementById("graficos").classList.contains("ativa")) atualizarGraficos();
   });
 }
 
@@ -194,40 +179,27 @@ async function carregarTudo() {
 }
 
 async function carregarCategorias() {
-  const { data, error } = await supabase
-    .from("categories")
-    .select("id,name")
-    .order("name", { ascending: true });
-
-  if (error) throw alert(error.message);
+  const { data, error } = await sb.from("categories").select("id,name").order("name");
+  if (error) return alert(error.message);
   categories = data || [];
 }
 
 async function carregarPagamentos() {
-  const { data, error } = await supabase
-    .from("payment_methods")
-    .select("id,name")
-    .order("name", { ascending: true });
-
-  if (error) throw alert(error.message);
+  const { data, error } = await sb.from("payment_methods").select("id,name").order("name");
+  if (error) return alert(error.message);
   paymentMethods = data || [];
 }
 
 async function carregarTransacoes() {
-  const { data, error } = await supabase
-    .from("transactions")
-    .select(`
-      id, group_id, type, amount, description, month,
-      installment_current, installments_total,
-      category_id, payment_method_id
-    `)
+  const { data, error } = await sb.from("transactions")
+    .select("id, group_id, type, amount, description, month, installment_current, installments_total, category_id, payment_method_id")
     .order("month", { ascending: true });
 
-  if (error) throw alert(error.message);
+  if (error) return alert(error.message);
 
   transactions = (data || []).map(t => ({
     ...t,
-    month_str: dateToMonthStr(new Date(t.month)),
+    month_str: dateToMonthStr(new Date(t.month))
   }));
 }
 
@@ -241,7 +213,6 @@ function renderTudo() {
 function renderCategorias() {
   const ul = document.getElementById("listaCategorias");
   const select = document.getElementById("categoria");
-
   ul.innerHTML = "";
   select.innerHTML = `<option value="">Categoria</option>`;
 
@@ -259,7 +230,6 @@ function renderCategorias() {
 function renderPagamentos() {
   const ul = document.getElementById("listaPagamentos");
   const select = document.getElementById("pagamento");
-
   ul.innerHTML = "";
   select.innerHTML = `<option value="">Forma de pagamento</option>`;
 
@@ -279,9 +249,7 @@ function renderLancamentos() {
   ul.innerHTML = "";
 
   const mesFiltro = getMesFiltro();
-  const filtrada = mesFiltro
-    ? transactions.filter(t => t.month_str === mesFiltro)
-    : transactions;
+  const filtrada = mesFiltro ? transactions.filter(t => t.month_str === mesFiltro) : transactions;
 
   let entradas = 0, saidas = 0;
 
@@ -308,7 +276,7 @@ function renderLancamentos() {
   document.getElementById("saldo").innerText = `Saldo: ${fmtBRL(entradas - saidas)}`;
 }
 
-/* ================== CONFIG: bind botões ================== */
+/* ================== BIND BOTÕES ================== */
 document.getElementById("btnAddCategoria").addEventListener("click", addCategoria);
 document.getElementById("btnAddPagamento").addEventListener("click", addPagamento);
 
@@ -318,7 +286,7 @@ async function addCategoria() {
   const name = input.value.trim();
   if (!name) return alert("Informe a categoria");
 
-  const { error } = await supabase.from("categories").insert({ user_id: sessionUser.id, name });
+  const { error } = await sb.from("categories").insert({ user_id: sessionUser.id, name });
   if (error) return alert(error.message);
 
   input.value = "";
@@ -331,10 +299,11 @@ async function editarCategoria(id) {
   const atual = categories.find(c => c.id === id)?.name || "";
   const novo = prompt("Editar categoria:", atual);
   if (!novo) return;
+
   const name = novo.trim();
   if (!name) return;
 
-  const { error } = await supabase.from("categories").update({ name }).eq("id", id);
+  const { error } = await sb.from("categories").update({ name }).eq("id", id);
   if (error) return alert(error.message);
 
   await carregarCategorias();
@@ -347,7 +316,7 @@ async function removerCategoria(id) {
   const ok = confirm("Excluir categoria? (lançamentos ficam sem categoria)");
   if (!ok) return;
 
-  const { error } = await supabase.from("categories").delete().eq("id", id);
+  const { error } = await sb.from("categories").delete().eq("id", id);
   if (error) return alert(error.message);
 
   await carregarCategorias();
@@ -362,7 +331,7 @@ async function addPagamento() {
   const name = input.value.trim();
   if (!name) return alert("Informe a forma de pagamento");
 
-  const { error } = await supabase.from("payment_methods").insert({ user_id: sessionUser.id, name });
+  const { error } = await sb.from("payment_methods").insert({ user_id: sessionUser.id, name });
   if (error) return alert(error.message);
 
   input.value = "";
@@ -375,10 +344,11 @@ async function editarPagamento(id) {
   const atual = paymentMethods.find(p => p.id === id)?.name || "";
   const novo = prompt("Editar forma de pagamento:", atual);
   if (!novo) return;
+
   const name = novo.trim();
   if (!name) return;
 
-  const { error } = await supabase.from("payment_methods").update({ name }).eq("id", id);
+  const { error } = await sb.from("payment_methods").update({ name }).eq("id", id);
   if (error) return alert(error.message);
 
   await carregarPagamentos();
@@ -391,7 +361,7 @@ async function removerPagamento(id) {
   const ok = confirm("Excluir forma de pagamento? (lançamentos ficam sem pagamento)");
   if (!ok) return;
 
-  const { error } = await supabase.from("payment_methods").delete().eq("id", id);
+  const { error } = await sb.from("payment_methods").delete().eq("id", id);
   if (error) return alert(error.message);
 
   await carregarPagamentos();
@@ -401,7 +371,9 @@ async function removerPagamento(id) {
 }
 
 /* ================== CRUD: LANÇAMENTOS ================== */
-document.getElementById("formLancamento").addEventListener("submit", async (e) => {
+document.getElementById("formLancamento").addEventListener("submit", salvarLancamento);
+
+async function salvarLancamento(e) {
   e.preventDefault();
 
   try {
@@ -420,12 +392,16 @@ document.getElementById("formLancamento").addEventListener("submit", async (e) =
     if (!category_id) throw "Selecione a categoria";
     if (!payment_method_id) throw "Selecione a forma de pagamento";
 
-    // editar apenas uma parcela
     if (editId) {
-      const monthDate = monthToDate(baseMonthStr);
-      const { error } = await supabase
-        .from("transactions")
-        .update({ type, amount: amountTotal, description, category_id, payment_method_id, month: monthDate })
+      const { error } = await sb.from("transactions")
+        .update({
+          type,
+          amount: amountTotal,
+          description,
+          category_id,
+          payment_method_id,
+          month: monthToDate(baseMonthStr)
+        })
         .eq("id", editId);
 
       if (error) return alert(error.message);
@@ -440,7 +416,6 @@ document.getElementById("formLancamento").addEventListener("submit", async (e) =
       return;
     }
 
-    // novo: gera parcelas por mês
     const group_id = installments > 1 ? crypto.randomUUID() : null;
 
     const base = +(amountTotal / installments).toFixed(2);
@@ -467,7 +442,7 @@ document.getElementById("formLancamento").addEventListener("submit", async (e) =
       });
     }
 
-    const { error } = await supabase.from("transactions").insert(rows);
+    const { error } = await sb.from("transactions").insert(rows);
     if (error) return alert(error.message);
 
     e.target.reset();
@@ -476,11 +451,10 @@ document.getElementById("formLancamento").addEventListener("submit", async (e) =
     await carregarTransacoes();
     renderLancamentos();
     atualizarGraficosSeAbaAtiva();
-
   } catch (err) {
     alert(err);
   }
-});
+}
 
 async function editarLancamento(id) {
   const t = transactions.find(x => x.id === id);
@@ -501,10 +475,8 @@ async function excluirLancamento(id) {
   if (!t) return;
 
   if (!t.group_id) {
-    const ok = confirm("Excluir este lançamento?");
-    if (!ok) return;
-
-    const { error } = await supabase.from("transactions").delete().eq("id", id);
+    if (!confirm("Excluir este lançamento?")) return;
+    const { error } = await sb.from("transactions").delete().eq("id", id);
     if (error) return alert(error.message);
 
     await carregarTransacoes();
@@ -521,7 +493,7 @@ async function excluirLancamento(id) {
   );
 
   if (escolha === "1") {
-    const { error } = await supabase.from("transactions").delete().eq("id", id);
+    const { error } = await sb.from("transactions").delete().eq("id", id);
     if (error) return alert(error.message);
 
     await carregarTransacoes();
@@ -531,13 +503,12 @@ async function excluirLancamento(id) {
   }
 
   if (escolha === "2") {
-    const { error } = await supabase.from("transactions").delete().eq("group_id", t.group_id);
+    const { error } = await sb.from("transactions").delete().eq("group_id", t.group_id);
     if (error) return alert(error.message);
 
     await carregarTransacoes();
     renderLancamentos();
     atualizarGraficosSeAbaAtiva();
-    return;
   }
 }
 
@@ -592,21 +563,11 @@ function renderChartMensal(labels, entradas, saidas) {
   const el = document.getElementById("graficoMensal");
   if (!el || !window.Chart) return;
 
-  const data = {
-    labels,
-    datasets: [
-      { label: "Entradas", data: entradas },
-      { label: "Saídas", data: saidas }
-    ]
-  };
+  const data = { labels, datasets: [{ label: "Entradas", data: entradas }, { label: "Saídas", data: saidas }] };
 
   if (chartMensal) { chartMensal.data = data; chartMensal.update(); return; }
 
-  chartMensal = new Chart(el, {
-    type: "bar",
-    data,
-    options: { responsive: true, plugins: { legend: { position: "top" } } }
-  });
+  chartMensal = new Chart(el, { type: "bar", data, options: { responsive: true, plugins: { legend: { position: "top" } } } });
 }
 
 function renderChartCategorias(labels, values) {
@@ -617,11 +578,7 @@ function renderChartCategorias(labels, values) {
 
   if (chartCategorias) { chartCategorias.data = data; chartCategorias.update(); return; }
 
-  chartCategorias = new Chart(el, {
-    type: "doughnut",
-    data,
-    options: { responsive: true, plugins: { legend: { position: "right" } } }
-  });
+  chartCategorias = new Chart(el, { type: "doughnut", data, options: { responsive: true, plugins: { legend: { position: "right" } } } });
 }
 
 function renderChartSaldo(labels, values) {
@@ -632,11 +589,7 @@ function renderChartSaldo(labels, values) {
 
   if (chartSaldo) { chartSaldo.data = data; chartSaldo.update(); return; }
 
-  chartSaldo = new Chart(el, {
-    type: "line",
-    data,
-    options: { responsive: true, plugins: { legend: { position: "top" } } }
-  });
+  chartSaldo = new Chart(el, { type: "line", data, options: { responsive: true, plugins: { legend: { position: "top" } } } });
 }
 
 /* ===== Expor para onclick ===== */
