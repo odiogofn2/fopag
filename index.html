@@ -15,19 +15,27 @@
     <h1>Controle Financeiro</h1>
   </header>
 
-  <!-- LOGIN (simples) -->
-  <section id="authBox" class="aba ativa" style="display:none;">
-    <h2>Acesso</h2>
-    <form id="formAuth">
+  <!-- LOGIN (não depende do CSS das abas) -->
+  <section id="authBox" style="padding:30px; display:none;">
+    <h2 style="margin-bottom:12px;">Acesso</h2>
+
+    <form id="formAuth" style="display:grid; gap:12px; grid-template-columns: 1fr;">
       <input id="authEmail" type="email" placeholder="Seu e-mail" required>
       <input id="authPass" type="password" placeholder="Senha" required>
       <button type="submit">Entrar / Cadastrar</button>
     </form>
-    <div style="margin-top:10px;">
+
+    <p style="margin-top:10px; color:#6b7280; font-size:13px;">
+      Se for seu primeiro acesso, ele tenta entrar. Se não existir, cria sua conta.
+      (Se seu Supabase exigir confirmação por e-mail, confirme e tente entrar de novo.)
+    </p>
+
+    <div style="margin-top:16px;">
       <button id="btnLogout" type="button" style="display:none;">Sair</button>
     </div>
   </section>
 
+  <!-- TABS -->
   <nav class="tabs" id="tabs" style="display:none;">
     <button class="active" data-aba="lancamentos">Lançamentos</button>
     <button data-aba="graficos">Gráficos</button>
