@@ -63,20 +63,22 @@ function mesesOrdenados(lista) {
 /* ================== ABAS ================== */
 function configurarAbas() {
   const tabs = document.querySelectorAll('.tabs button');
+
   tabs.forEach(btn => {
     btn.addEventListener('click', () => {
       tabs.forEach(b => b.classList.remove('active'));
       document.querySelectorAll('.aba').forEach(a => a.classList.remove('ativa'));
 
       btn.classList.add('active');
-      const id = btn.dataset.aba || (btn.getAttribute('onclick')?.includes('configuracoes') ? 'configuracoes' : 'lancamentos');
+      const id = btn.dataset.aba;
       document.getElementById(id).classList.add('ativa');
 
-      // ao trocar de aba, garante que os gráficos renderizem bem se necessário
-      if (id === 'lancamentos') atualizarGraficos();
+      // Atualiza gráficos quando entrar na aba "graficos"
+      if (id === 'graficos') atualizarGraficos();
     });
   });
 }
+
 
 /* ================== FILTRO POR MÊS ================== */
 function configurarFiltroMes() {
