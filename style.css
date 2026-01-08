@@ -1,3 +1,222 @@
+/* ===== RESET BÁSICO ===== */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: "Segoe UI", Roboto, Arial, sans-serif;
+}
+
 body {
-  background: red !important;
+  background: #f4f6f8;
+  color: #1f2933;
+}
+
+/* ===== APP CONTAINER ===== */
+.app {
+  max-width: 1100px;
+  margin: 40px auto;
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+  overflow: hidden;
+}
+
+/* ===== HEADER ===== */
+header {
+  padding: 20px 30px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+header h1 {
+  font-size: 22px;
+  font-weight: 600;
+}
+
+/* ===== TABS ===== */
+.tabs {
+  display: flex;
+  background: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.tabs button {
+  flex: 1;
+  padding: 14px;
+  border: none;
+  background: none;
+  font-size: 14px;
+  cursor: pointer;
+  color: #6b7280;
+  transition: 0.2s;
+}
+
+.tabs button.active {
+  background: #ffffff;
+  color: #111827;
+  font-weight: 600;
+  border-bottom: 3px solid #2563eb;
+}
+
+/* ===== ABAS ===== */
+.aba {
+  display: none;
+  padding: 30px;
+}
+
+.aba.ativa {
+  display: block;
+}
+
+/* ===== FORM ===== */
+form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 15px;
+  margin-bottom: 30px;
+}
+
+form input,
+form select {
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  font-size: 14px;
+}
+
+form input:focus,
+form select:focus {
+  outline: none;
+  border-color: #2563eb;
+}
+
+form button {
+  grid-column: span 2;
+  padding: 12px;
+  border: none;
+  border-radius: 8px;
+  background: #2563eb;
+  color: #ffffff;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+form button:hover {
+  background: #1e40af;
+}
+
+/* ===== LISTA DE LANÇAMENTOS ===== */
+#listaLancamentos {
+  list-style: none;
+}
+
+#listaLancamentos li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 10px;
+  border-bottom: 1px solid #e5e7eb;
+  font-size: 14px;
+}
+
+#listaLancamentos li:last-child {
+  border-bottom: none;
+}
+
+#listaLancamentos button {
+  margin-left: 6px;
+  padding: 4px 8px;
+  font-size: 12px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+#listaLancamentos button:nth-child(1) {
+  background: #facc15;
+}
+
+#listaLancamentos button:nth-child(2) {
+  background: #ef4444;
+  color: white;
+}
+
+/* ===== TOTAIS ===== */
+.totais {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 25px;
+  padding-top: 15px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.totais span,
+.totais strong {
+  font-size: 15px;
+}
+
+/* ===== CONFIGURAÇÕES ===== */
+.box-config {
+  margin: 15px 0 30px;
+}
+
+.box-config input {
+  padding: 10px;
+  width: 250px;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+}
+
+.box-config button {
+  padding: 10px 14px;
+  margin-left: 6px;
+  border-radius: 8px;
+  border: none;
+  background: #2563eb;
+  color: white;
+  cursor: pointer;
+}
+
+.box-config ul {
+  list-style: none;
+  margin-top: 10px;
+}
+
+.box-config li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+  font-size: 14px;
+}
+
+.box-config li button {
+  background: #ef4444;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 3px 8px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+/* ===== RESPONSIVO ===== */
+@media (max-width: 700px) {
+  .app {
+    margin: 0;
+    border-radius: 0;
+  }
+
+  form {
+    grid-template-columns: 1fr;
+  }
+
+  form button {
+    grid-column: 1;
+  }
+
+  .totais {
+    flex-direction: column;
+    gap: 8px;
+  }
 }
