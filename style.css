@@ -1,169 +1,30 @@
-* {
-  box-sizing: border-box;
-  font-family: "Segoe UI", Roboto, Arial, sans-serif;
+.gerenciar {
+  margin-top: 20px;
 }
 
-body {
-  margin: 0;
-  background: #020617;
-  color: #fff;
-}
-
-.app {
-  max-width: 480px;
-  margin: auto;
-  min-height: 100vh;
-}
-
-.topo {
-  padding: 20px;
-  background: linear-gradient(135deg, #22c55e, #16a34a);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.resumo {
-  display: flex;
-  gap: 10px;
-  padding: 15px;
-}
-
-.card {
-  flex: 1;
-  background: #020617;
-  padding: 15px;
-  border-radius: 12px;
-  box-shadow: 0 6px 18px rgba(0,0,0,.4);
-}
-
-.card span {
-  font-size: 13px;
-  opacity: .7;
-}
-
-.card strong {
-  font-size: 18px;
-  margin-top: 5px;
-  display: block;
-}
-
-.card.entrada strong { color: #22c55e; }
-.card.saida strong { color: #ef4444; }
-
-.formulario {
-  padding: 15px;
-  display: grid;
-  gap: 10px;
-}
-
-.formulario input,
-.formulario select,
-.formulario button {
-  padding: 12px;
-  border-radius: 10px;
-  border: none;
-  font-size: 14px;
-}
-
-.formulario input,
-.formulario select {
-  background: #020617;
-  color: #fff;
-  border: 1px solid #1e293b;
-}
-
-.formulario button {
-  background: #22c55e;
-  color: #020617;
-  font-weight: bold;
-}
-
-.formulario .cancelar {
-  background: #334155;
-  color: #fff;
-}
-
-.categorias-btn {
-  background: #1e293b;
-  color: #fff;
-}
-
-.mensagem {
-  text-align: center;
-  font-size: 13px;
-  color: #facc15;
-}
-
-.lista {
-  padding: 15px;
-}
-
-.lista ul {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-
-.lista li {
-  background: #020617;
-  border-radius: 12px;
-  padding: 12px;
-  margin-bottom: 10px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.valor.entrada { color: #22c55e; }
-.valor.saida { color: #ef4444; }
-
-.lista button {
-  background: none;
-  border: none;
-  color: #94a3b8;
-  cursor: pointer;
-  font-size: 16px;
-}
-
-/* MODAL */
-.modal {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,.7);
-  display: none;
-  align-items: center;
-  justify-content: center;
-  z-index: 20;
-}
-
-.modal-content {
-  background: #020617;
-  width: 90%;
-  max-width: 400px;
-  padding: 20px;
-  border-radius: 12px;
-}
-
-.nova-categoria {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 15px;
-}
-
-#listaCategorias {
-  list-style: none;
-  padding: 0;
-}
-
-#listaCategorias li {
-  display: flex;
-  justify-content: space-between;
-  padding: 8px 0;
-  border-bottom: 1px solid #1e293b;
-}
-
-.fechar {
+.gerenciar input,
+.gerenciar button {
   width: 100%;
-  margin-top: 10px;
+  margin-bottom: 8px;
+  padding: 10px;
+  border-radius: 10px;
+}
+
+.gerenciar ul {
+  padding: 0;
+}
+
+.gerenciar li {
+  display: flex;
+  justify-content: space-between;
+  background: #f1f1f1;
+  margin-bottom: 6px;
+  padding: 8px;
+  border-radius: 8px;
+}
+
+.gerenciar button {
+  background: #2e86de;
+  color: white;
+  border: none;
 }
