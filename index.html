@@ -52,7 +52,22 @@
       <button type="submit">Salvar</button>
     </form>
       <input type="month" id="mesFiltro">
+      <!-- Chart.js (CDN) -->
+      <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
+      <!-- PAINEL DE GRÁFICOS -->
+      <section id="painelGraficos">
+        <h2>Gráficos</h2>
+
+        <!-- 1) Entradas x Saídas por mês -->
+        <canvas id="graficoMensal" height="110"></canvas>
+
+        <!-- 2) Gastos por categoria (mês filtrado, ou todos se vazio) -->
+        <canvas id="graficoCategorias" height="110"></canvas>
+
+        <!-- 3) Evolução do saldo acumulado -->
+        <canvas id="graficoSaldo" height="110"></canvas>
+      </section>
     <ul id="listaLancamentos"></ul>
 
     <div class="totais">
