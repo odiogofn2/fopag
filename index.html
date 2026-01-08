@@ -4,7 +4,6 @@
   <meta charset="UTF-8">
   <title>Controle Financeiro</title>
 
-  <!-- CSS NA RAIZ -->
   <link rel="stylesheet" href="style.css">
   <link rel="icon" href="data:,">
 </head>
@@ -16,59 +15,40 @@
     <h1>Controle Financeiro</h1>
   </header>
 
-<nav class="tabs">
-  <button class="active" data-aba="lancamentos">Lançamentos</button>
-  <button data-aba="graficos">Gráficos</button>
-  <button data-aba="configuracoes">Configurações</button>
-</nav>
+  <nav class="tabs">
+    <button class="active" data-aba="lancamentos">Lançamentos</button>
+    <button data-aba="graficos">Gráficos</button>
+    <button data-aba="configuracoes">Configurações</button>
+  </nav>
 
   <!-- ================= LANCAMENTOS ================= -->
   <section id="lancamentos" class="aba ativa">
 
     <form id="formLancamento">
-
       <select id="tipo" required>
         <option value="">Tipo</option>
         <option value="entrada">Entrada</option>
         <option value="saida">Saída</option>
       </select>
 
-      <input id="valor" placeholder="Valor (ex: 5,99)" required>
+      <input id="valor" placeholder="Valor (ex: 5,99 ou 5.99)" required>
 
-      <input
-        id="parcelas"
-        type="number"
-        min="1"
-        value="1"
-        placeholder="Parcelas"
-      >
+      <input id="parcelas" type="number" min="1" value="1" placeholder="Parcelas">
 
-      <input id="local" placeholder="Local" required>
+      <input id="local" placeholder="Local / Descrição" required>
 
       <select id="categoria" required></select>
       <select id="pagamento" required></select>
 
+      <!-- mês do lançamento -->
       <input type="month" id="mes" required>
 
       <button type="submit">Salvar</button>
     </form>
-      <input type="month" id="mesFiltro">
-      <!-- Chart.js (CDN) -->
-      <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-      <!-- PAINEL DE GRÁFICOS -->
-      <section id="graficos" class="aba">
-        <h2>Gráficos</h2>
+    <!-- filtro por mês -->
+    <input type="month" id="mesFiltro">
 
-        <!-- 1) Entradas x Saídas por mês -->
-        <canvas id="graficoMensal" height="110"></canvas>
-
-        <!-- 2) Gastos por categoria (mês filtrado, ou todos se vazio) -->
-        <canvas id="graficoCategorias" height="110"></canvas>
-
-        <!-- 3) Evolução do saldo acumulado -->
-        <canvas id="graficoSaldo" height="110"></canvas>
-      </section>
     <ul id="listaLancamentos"></ul>
 
     <div class="totais">
@@ -79,20 +59,29 @@
 
   </section>
 
+  <!-- ================= GRAFICOS ================= -->
+  <section id="graficos" class="aba">
+    <h2>Gráficos</h2>
+
+    <canvas id="graficoMensal" height="110"></canvas>
+    <canvas id="graficoCategorias" height="110"></canvas>
+    <canvas id="graficoSaldo" height="110"></canvas>
+  </section>
+
   <!-- ================= CONFIGURACOES ================= -->
   <section id="configuracoes" class="aba">
 
     <h2>Categorias</h2>
     <div class="box-config">
       <input id="novaCategoria" placeholder="Nova categoria">
-      <button id="btnAddCategoria">Adicionar</button>
+      <button id="btnAddCategoria" type="button">Adicionar</button>
       <ul id="listaCategorias"></ul>
     </div>
 
     <h2>Formas de Pagamento</h2>
     <div class="box-config">
       <input id="novoPagamento" placeholder="Nova forma de pagamento">
-      <button id="btnAddPagamento">Adicionar</button>
+      <button id="btnAddPagamento" type="button">Adicionar</button>
       <ul id="listaPagamentos"></ul>
     </div>
 
@@ -100,7 +89,8 @@
 
 </div>
 
-<!-- JS NA RAIZ -->
+<!-- Chart.js antes do script.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="script.js"></script>
 </body>
 </html>
