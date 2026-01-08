@@ -2,7 +2,6 @@
 const SUPABASE_URL = "https://fwzdxtpkirkyygzoezjx.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ3emR4dHBraXJreXlnem9lemp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc4OTE3MjcsImV4cCI6MjA4MzQ2NzcyN30.JhZaeArVoReH150Z6seCKu8AM1qw9PeZayLfTtfJqIQ";
 
-// SDK fica em window.supabase (objeto). Cliente fica em window.__sb (único).
 window.__sb = window.__sb || window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const sb = window.__sb;
 
@@ -11,6 +10,7 @@ let sessionUser = null;
 
 let categories = [];
 let paymentMethods = [];
+let banks = [];
 let transactions = [];
 
 let editId = null;
@@ -18,6 +18,7 @@ let editId = null;
 /* ================== CHARTS ================== */
 let chartMensal = null;
 let chartCategorias = null;
+let chartBancos = null;
 let chartSaldo = null;
 
 /* ================== INIT ================== */
@@ -25,6 +26,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   configurarAbas();
   configurarFiltroMes();
   configurarAuthUI();
+
+  bindConfigButtons();
 
   const { data } = await sb.auth.getSession();
   sessionUser = data.session?.user || null;
@@ -100,25 +103,16 @@ function configurarAuthUI() {
     const email = document.getElementById("authEmail").value.trim();
     const pass = document.getElementById("authPass").value;
 
-    // tenta login
     let res = await sb.auth.signInWithPassword({ email, password: pass });
-
-    // se falhar, cria conta
     if (res.error) {
       const sign = await sb.auth.signUp({ email, password: pass });
       if (sign.error) return alert(sign.error.message);
-
       return alert("Conta criada! Se exigir confirmação por e-mail, confirme e tente entrar novamente.");
     }
   });
 
-  btnLogout.addEventListener("click", async () => {
-    await sb.auth.signOut();
-  });
-
-  btnLogout2.addEventListener("click", async () => {
-    await sb.auth.signOut();
-  });
+  btnLogout.addEventListener("click", async () => sb.auth.signOut());
+  btnLogout2.addEventListener("click", async () => sb.auth.signOut());
 }
 
 async function aplicarEstadoAuth() {
@@ -126,15 +120,18 @@ async function aplicarEstadoAuth() {
 
   show("authBox", !logado);
   show("tabs", logado);
-  show("lancamentos", logado);
-  show("graficos", logado);
-  show("configuracoes", logado);
+
+  const appSections = ["lancamentos", "graficos", "configuracoes"];
+  appSections.forEach(id => show(id, logado));
 
   if (!logado) return;
 
   ativarAba("lancamentos");
 
   await carregarTudo();
+  await garantirBancosPadraoSeVazio(); // Inter, Nubank, MercadoPago, Banco do Brasil
+
+  await carregarTudo(); // recarrega depois de possível insert
   renderTudo();
 }
 
@@ -145,14 +142,24 @@ function configurarAbas() {
 }
 
 function ativarAba(id) {
-  document.querySelectorAll(".tabs button").forEach(b => b.classList.remove("active"));
-  document.querySelectorAll(".aba").forEach(a => a.classList.remove("ativa"));
+  const abas = ["lancamentos", "graficos", "configuracoes"];
 
+  document.querySelectorAll(".tabs button").forEach(b => b.classList.remove("active"));
   const btn = document.querySelector(`.tabs button[data-aba="${id}"]`);
   if (btn) btn.classList.add("active");
 
-  const sec = document.getElementById(id);
-  if (sec) sec.classList.add("ativa");
+  abas.forEach(secId => {
+    const sec = document.getElementById(secId);
+    if (!sec) return;
+    sec.classList.remove("ativa");
+    sec.style.display = "none";
+  });
+
+  const alvo = document.getElementById(id);
+  if (alvo) {
+    alvo.classList.add("ativa");
+    alvo.style.display = "";
+  }
 
   if (id === "graficos") atualizarGraficos();
 }
@@ -169,13 +176,13 @@ function configurarFiltroMes() {
 
   el.addEventListener("change", () => {
     renderLancamentos();
-    if (document.getElementById("graficos").classList.contains("ativa")) atualizarGraficos();
+    if (document.getElementById("graficos")?.classList.contains("ativa")) atualizarGraficos();
   });
 }
 
 /* ================== LOAD DATA ================== */
 async function carregarTudo() {
-  await Promise.all([carregarCategorias(), carregarPagamentos(), carregarTransacoes()]);
+  await Promise.all([carregarCategorias(), carregarPagamentos(), carregarBancos(), carregarTransacoes()]);
 }
 
 async function carregarCategorias() {
@@ -190,9 +197,15 @@ async function carregarPagamentos() {
   paymentMethods = data || [];
 }
 
+async function carregarBancos() {
+  const { data, error } = await sb.from("banks").select("id,name").order("name");
+  if (error) return alert(error.message);
+  banks = data || [];
+}
+
 async function carregarTransacoes() {
   const { data, error } = await sb.from("transactions")
-    .select("id, group_id, type, amount, description, month, installment_current, installments_total, category_id, payment_method_id")
+    .select("id, group_id, type, amount, description, month, installment_current, installments_total, category_id, payment_method_id, bank_id")
     .order("month", { ascending: true });
 
   if (error) return alert(error.message);
@@ -203,10 +216,26 @@ async function carregarTransacoes() {
   }));
 }
 
+/* ================== DEFAULT BANKS ================== */
+async function garantirBancosPadraoSeVazio() {
+  // se já tem banco cadastrado, não mexe
+  if (banks.length > 0) return;
+
+  const padrao = ["Inter", "Nubank", "MercadoPago", "Banco do Brasil"];
+  const rows = padrao.map(name => ({ user_id: sessionUser.id, name }));
+
+  const { error } = await sb.from("banks").insert(rows);
+  if (error) {
+    // se der conflito por unique etc, só ignora
+    console.warn("Não consegui inserir bancos padrão:", error.message);
+  }
+}
+
 /* ================== RENDER ================== */
 function renderTudo() {
   renderCategorias();
   renderPagamentos();
+  renderBancos();
   renderLancamentos();
 }
 
@@ -244,6 +273,23 @@ function renderPagamentos() {
   });
 }
 
+function renderBancos() {
+  const ul = document.getElementById("listaBancos");
+  const select = document.getElementById("banco");
+  ul.innerHTML = "";
+  select.innerHTML = `<option value="">Banco</option>`;
+
+  banks.forEach((b) => {
+    ul.innerHTML += `
+      <li>
+        ${b.name}
+        <button type="button" onclick="editarBanco('${b.id}')">✎</button>
+        <button type="button" onclick="removerBanco('${b.id}')">✕</button>
+      </li>`;
+    select.innerHTML += `<option value="${b.id}">${b.name}</option>`;
+  });
+}
+
 function renderLancamentos() {
   const ul = document.getElementById("listaLancamentos");
   ul.innerHTML = "";
@@ -256,11 +302,12 @@ function renderLancamentos() {
   filtrada.forEach(t => {
     const catName = categories.find(c => c.id === t.category_id)?.name || "";
     const payName = paymentMethods.find(p => p.id === t.payment_method_id)?.name || "";
+    const bankName = banks.find(b => b.id === t.bank_id)?.name || "";
 
     ul.innerHTML += `
       <li>
         ${t.type.toUpperCase()} | ${t.month_str} | ${fmtBRL(t.amount)}
-        | ${catName} | ${payName}
+        | ${catName} | ${payName} | ${bankName}
         ${t.installments_total > 1 ? `| ${t.installment_current}/${t.installments_total}` : ""}
         <button type="button" onclick="editarLancamento('${t.id}')">✏️</button>
         <button type="button" onclick="excluirLancamento('${t.id}')">🗑️</button>
@@ -277,8 +324,11 @@ function renderLancamentos() {
 }
 
 /* ================== BIND BOTÕES ================== */
-document.getElementById("btnAddCategoria").addEventListener("click", addCategoria);
-document.getElementById("btnAddPagamento").addEventListener("click", addPagamento);
+function bindConfigButtons() {
+  document.getElementById("btnAddCategoria")?.addEventListener("click", addCategoria);
+  document.getElementById("btnAddPagamento")?.addEventListener("click", addPagamento);
+  document.getElementById("btnAddBanco")?.addEventListener("click", addBanco);
+}
 
 /* ================== CRUD: CATEGORIAS ================== */
 async function addCategoria() {
@@ -313,8 +363,7 @@ async function editarCategoria(id) {
 }
 
 async function removerCategoria(id) {
-  const ok = confirm("Excluir categoria? (lançamentos ficam sem categoria)");
-  if (!ok) return;
+  if (!confirm("Excluir categoria? (lançamentos ficam sem categoria)")) return;
 
   const { error } = await sb.from("categories").delete().eq("id", id);
   if (error) return alert(error.message);
@@ -358,13 +407,56 @@ async function editarPagamento(id) {
 }
 
 async function removerPagamento(id) {
-  const ok = confirm("Excluir forma de pagamento? (lançamentos ficam sem pagamento)");
-  if (!ok) return;
+  if (!confirm("Excluir forma de pagamento? (lançamentos ficam sem pagamento)")) return;
 
   const { error } = await sb.from("payment_methods").delete().eq("id", id);
   if (error) return alert(error.message);
 
   await carregarPagamentos();
+  await carregarTransacoes();
+  renderTudo();
+  atualizarGraficosSeAbaAtiva();
+}
+
+/* ================== CRUD: BANCOS ================== */
+async function addBanco() {
+  const input = document.getElementById("novoBanco");
+  const name = input.value.trim();
+  if (!name) return alert("Informe o banco");
+
+  const { error } = await sb.from("banks").insert({ user_id: sessionUser.id, name });
+  if (error) return alert(error.message);
+
+  input.value = "";
+  await carregarBancos();
+  renderBancos();
+  atualizarGraficosSeAbaAtiva();
+}
+
+async function editarBanco(id) {
+  const atual = banks.find(b => b.id === id)?.name || "";
+  const novo = prompt("Editar banco:", atual);
+  if (!novo) return;
+
+  const name = novo.trim();
+  if (!name) return;
+
+  const { error } = await sb.from("banks").update({ name }).eq("id", id);
+  if (error) return alert(error.message);
+
+  await carregarBancos();
+  renderBancos();
+  renderLancamentos();
+  atualizarGraficosSeAbaAtiva();
+}
+
+async function removerBanco(id) {
+  if (!confirm("Excluir banco? (lançamentos ficam sem banco)")) return;
+
+  const { error } = await sb.from("banks").delete().eq("id", id);
+  if (error) return alert(error.message);
+
+  await carregarBancos();
   await carregarTransacoes();
   renderTudo();
   atualizarGraficosSeAbaAtiva();
@@ -382,6 +474,7 @@ async function salvarLancamento(e) {
     const description = document.getElementById("local").value.trim();
     const category_id = document.getElementById("categoria").value;
     const payment_method_id = document.getElementById("pagamento").value;
+    const bank_id = document.getElementById("banco").value;
     const baseMonthStr = normalizarMes(document.getElementById("mes").value);
 
     let installments = parseInt(document.getElementById("parcelas").value, 10);
@@ -391,7 +484,9 @@ async function salvarLancamento(e) {
     if (!description) throw "Informe o local/descrição";
     if (!category_id) throw "Selecione a categoria";
     if (!payment_method_id) throw "Selecione a forma de pagamento";
+    if (!bank_id) throw "Selecione o banco";
 
+    // editar 1 registro
     if (editId) {
       const { error } = await sb.from("transactions")
         .update({
@@ -400,6 +495,7 @@ async function salvarLancamento(e) {
           description,
           category_id,
           payment_method_id,
+          bank_id,
           month: monthToDate(baseMonthStr)
         })
         .eq("id", editId);
@@ -416,6 +512,7 @@ async function salvarLancamento(e) {
       return;
     }
 
+    // novo: parcelas (explode por mês)
     const group_id = installments > 1 ? crypto.randomUUID() : null;
 
     const base = +(amountTotal / installments).toFixed(2);
@@ -436,6 +533,7 @@ async function salvarLancamento(e) {
         description,
         category_id,
         payment_method_id,
+        bank_id,
         month: monthToDate(m),
         installment_current: installments > 1 ? (i + 1) : 1,
         installments_total: installments
@@ -451,6 +549,7 @@ async function salvarLancamento(e) {
     await carregarTransacoes();
     renderLancamentos();
     atualizarGraficosSeAbaAtiva();
+
   } catch (err) {
     alert(err);
   }
@@ -467,6 +566,7 @@ async function editarLancamento(id) {
   document.getElementById("local").value = t.description;
   document.getElementById("categoria").value = t.category_id || "";
   document.getElementById("pagamento").value = t.payment_method_id || "";
+  document.getElementById("banco").value = t.bank_id || "";
   document.getElementById("mes").value = t.month_str;
 }
 
@@ -514,12 +614,13 @@ async function excluirLancamento(id) {
 
 /* ================== GRÁFICOS ================== */
 function atualizarGraficosSeAbaAtiva() {
-  if (document.getElementById("graficos").classList.contains("ativa")) atualizarGraficos();
+  if (document.getElementById("graficos")?.classList.contains("ativa")) atualizarGraficos();
 }
 
 function atualizarGraficos() {
   const lista = transactions;
 
+  // (1) Entradas x Saídas por mês
   const meses = mesesOrdenados(lista);
   const entradasMes = [];
   const saidasMes = [];
@@ -534,19 +635,32 @@ function atualizarGraficos() {
     saidasMes.push(+s.toFixed(2));
   });
 
+  // (2) Gastos por categoria (respeita filtro)
   const mesFiltro = getMesFiltro();
-  const baseCat = mesFiltro ? lista.filter(t => t.month_str === mesFiltro) : lista;
-  const gastos = {};
+  const baseFiltrada = mesFiltro ? lista.filter(t => t.month_str === mesFiltro) : lista;
 
-  baseCat.forEach(t => {
+  const gastosCat = {};
+  baseFiltrada.forEach(t => {
     if (t.type !== "saida") return;
     const nome = categories.find(c => c.id === t.category_id)?.name || "Sem categoria";
-    gastos[nome] = (gastos[nome] || 0) + Number(t.amount);
+    gastosCat[nome] = (gastosCat[nome] || 0) + Number(t.amount);
   });
 
-  const catLabels = Object.keys(gastos);
-  const catValues = catLabels.map(k => +gastos[k].toFixed(2));
+  const catLabels = Object.keys(gastosCat);
+  const catValues = catLabels.map(k => +gastosCat[k].toFixed(2));
 
+  // (NOVO) Gastos por banco (respeita filtro)
+  const gastosBank = {};
+  baseFiltrada.forEach(t => {
+    if (t.type !== "saida") return;
+    const nome = banks.find(b => b.id === t.bank_id)?.name || "Sem banco";
+    gastosBank[nome] = (gastosBank[nome] || 0) + Number(t.amount);
+  });
+
+  const bankLabels = Object.keys(gastosBank);
+  const bankValues = bankLabels.map(k => +gastosBank[k].toFixed(2));
+
+  // (3) Saldo acumulado
   let acum = 0;
   const saldoAcum = meses.map((m, idx) => {
     const net = entradasMes[idx] - saidasMes[idx];
@@ -556,6 +670,7 @@ function atualizarGraficos() {
 
   renderChartMensal(meses, entradasMes, saidasMes);
   renderChartCategorias(catLabels, catValues);
+  renderChartBancos(bankLabels, bankValues);
   renderChartSaldo(meses, saldoAcum);
 }
 
@@ -567,7 +682,11 @@ function renderChartMensal(labels, entradas, saidas) {
 
   if (chartMensal) { chartMensal.data = data; chartMensal.update(); return; }
 
-  chartMensal = new Chart(el, { type: "bar", data, options: { responsive: true, plugins: { legend: { position: "top" } } } });
+  chartMensal = new Chart(el, {
+    type: "bar",
+    data,
+    options: { responsive: true, plugins: { legend: { position: "top" } } }
+  });
 }
 
 function renderChartCategorias(labels, values) {
@@ -578,7 +697,26 @@ function renderChartCategorias(labels, values) {
 
   if (chartCategorias) { chartCategorias.data = data; chartCategorias.update(); return; }
 
-  chartCategorias = new Chart(el, { type: "doughnut", data, options: { responsive: true, plugins: { legend: { position: "right" } } } });
+  chartCategorias = new Chart(el, {
+    type: "doughnut",
+    data,
+    options: { responsive: true, plugins: { legend: { position: "right" } } }
+  });
+}
+
+function renderChartBancos(labels, values) {
+  const el = document.getElementById("graficoBancos");
+  if (!el || !window.Chart) return;
+
+  const data = { labels, datasets: [{ label: "Gastos por banco", data: values }] };
+
+  if (chartBancos) { chartBancos.data = data; chartBancos.update(); return; }
+
+  chartBancos = new Chart(el, {
+    type: "doughnut",
+    data,
+    options: { responsive: true, plugins: { legend: { position: "right" } } }
+  });
 }
 
 function renderChartSaldo(labels, values) {
@@ -589,13 +727,22 @@ function renderChartSaldo(labels, values) {
 
   if (chartSaldo) { chartSaldo.data = data; chartSaldo.update(); return; }
 
-  chartSaldo = new Chart(el, { type: "line", data, options: { responsive: true, plugins: { legend: { position: "top" } } } });
+  chartSaldo = new Chart(el, {
+    type: "line",
+    data,
+    options: { responsive: true, plugins: { legend: { position: "top" } } }
+  });
 }
 
 /* ===== Expor para onclick ===== */
 window.editarLancamento = editarLancamento;
 window.excluirLancamento = excluirLancamento;
+
 window.editarCategoria = editarCategoria;
 window.removerCategoria = removerCategoria;
+
 window.editarPagamento = editarPagamento;
 window.removerPagamento = removerPagamento;
+
+window.editarBanco = editarBanco;
+window.removerBanco = removerBanco;
