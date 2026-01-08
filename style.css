@@ -1,0 +1,157 @@
+* {
+  box-sizing: border-box;
+  font-family: "Segoe UI", Roboto, Arial, sans-serif;
+}
+
+body {
+  background: #0f172a;
+  margin: 0;
+  padding: 0;
+  color: #fff;
+}
+
+.app {
+  max-width: 480px;
+  margin: auto;
+  min-height: 100vh;
+  background: #020617;
+}
+
+.topo {
+  padding: 20px;
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.topo h1 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.saldo {
+  font-size: 18px;
+  font-weight: bold;
+}
+
+.resumo {
+  display: flex;
+  gap: 10px;
+  padding: 15px;
+}
+
+.card {
+  flex: 1;
+  background: #020617;
+  border-radius: 12px;
+  padding: 15px;
+  box-shadow: 0 5px 15px rgba(0,0,0,.4);
+}
+
+.card span {
+  font-size: 13px;
+  opacity: .7;
+}
+
+.card strong {
+  font-size: 18px;
+  display: block;
+  margin-top: 5px;
+}
+
+.card.entrada strong {
+  color: #22c55e;
+}
+
+.card.saida strong {
+  color: #ef4444;
+}
+
+.formulario {
+  padding: 15px;
+  display: grid;
+  gap: 10px;
+}
+
+.formulario input,
+.formulario select,
+.formulario button {
+  padding: 12px;
+  border-radius: 10px;
+  border: none;
+  font-size: 14px;
+}
+
+.formulario input,
+.formulario select {
+  background: #020617;
+  color: #fff;
+  border: 1px solid #1e293b;
+}
+
+.formulario button {
+  background: #22c55e;
+  color: #020617;
+  font-weight: bold;
+}
+
+.formulario .cancelar {
+  background: #334155;
+  color: #fff;
+}
+
+.mensagem {
+  color: #facc15;
+  font-size: 13px;
+  text-align: center;
+}
+
+.lista {
+  padding: 15px;
+}
+
+.lista h2 {
+  font-size: 16px;
+  margin-bottom: 10px;
+}
+
+.lista ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.lista li {
+  background: #020617;
+  border-radius: 12px;
+  padding: 12px;
+  margin-bottom: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.lista .info {
+  font-size: 14px;
+}
+
+.lista .valor {
+  font-weight: bold;
+}
+
+.lista .entrada {
+  color: #22c55e;
+}
+
+.lista .saida {
+  color: #ef4444;
+}
+
+.lista button {
+  background: none;
+  border: none;
+  color: #94a3b8;
+  margin-left: 8px;
+  cursor: pointer;
+}
