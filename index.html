@@ -15,7 +15,7 @@
     <h1>Controle Financeiro</h1>
   </header>
 
-  <!-- LOGIN (não depende do CSS das abas) -->
+  <!-- LOGIN -->
   <section id="authBox" style="padding:30px; display:none;">
     <h2 style="margin-bottom:12px;">Acesso</h2>
 
@@ -26,8 +26,8 @@
     </form>
 
     <p style="margin-top:10px; color:#6b7280; font-size:13px;">
-      Se for seu primeiro acesso, ele tenta entrar. Se não existir, cria sua conta.
-      (Se seu Supabase exigir confirmação por e-mail, confirme e tente entrar de novo.)
+      Ele tenta entrar. Se não existir, cria sua conta.
+      (Se exigir confirmação por e-mail, confirme e tente entrar de novo.)
     </p>
 
     <div style="margin-top:16px;">
@@ -61,6 +61,9 @@
       <select id="categoria" required></select>
       <select id="pagamento" required></select>
 
+      <!-- NOVO: BANCO -->
+      <select id="banco" required></select>
+
       <input type="month" id="mes" required>
 
       <button type="submit">Salvar</button>
@@ -84,6 +87,10 @@
 
     <canvas id="graficoMensal" height="110"></canvas>
     <canvas id="graficoCategorias" height="110"></canvas>
+
+    <!-- NOVO: bancos -->
+    <canvas id="graficoBancos" height="110"></canvas>
+
     <canvas id="graficoSaldo" height="110"></canvas>
   </section>
 
@@ -102,6 +109,14 @@
       <input id="novoPagamento" placeholder="Nova forma de pagamento">
       <button id="btnAddPagamento" type="button">Adicionar</button>
       <ul id="listaPagamentos"></ul>
+    </div>
+
+    <!-- NOVO: BANCOS -->
+    <h2>Bancos</h2>
+    <div class="box-config">
+      <input id="novoBanco" placeholder="Novo banco">
+      <button id="btnAddBanco" type="button">Adicionar</button>
+      <ul id="listaBancos"></ul>
     </div>
 
     <div style="margin-top:20px;">
