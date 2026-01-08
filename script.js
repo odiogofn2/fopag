@@ -1,1 +1,89 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Controle Financeiro</title>
 
+  <!-- CSS NA RAIZ -->
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="data:,">
+</head>
+<body>
+
+<div class="app">
+
+  <header>
+    <h1>Controle Financeiro</h1>
+  </header>
+
+  <nav class="tabs">
+    <button class="active" data-aba="lancamentos">Lançamentos</button>
+    <button data-aba="configuracoes">Configurações</button>
+  </nav>
+
+  <!-- ================= LANCAMENTOS ================= -->
+  <section id="lancamentos" class="aba ativa">
+
+    <form id="formLancamento">
+
+      <select id="tipo" required>
+        <option value="">Tipo</option>
+        <option value="entrada">Entrada</option>
+        <option value="saida">Saída</option>
+      </select>
+
+      <input id="valor" placeholder="Valor (ex: 5,99)" required>
+
+      <input
+        id="parcelas"
+        type="number"
+        min="1"
+        value="1"
+        placeholder="Parcelas"
+      >
+
+      <input id="local" placeholder="Local" required>
+
+      <select id="categoria" required></select>
+      <select id="pagamento" required></select>
+
+      <input type="month" id="mes" required>
+
+      <button type="submit">Salvar</button>
+    </form>
+
+    <ul id="listaLancamentos"></ul>
+
+    <div class="totais">
+      <span id="totalEntradas">Entradas: R$ 0,00</span>
+      <span id="totalSaidas">Saídas: R$ 0,00</span>
+      <strong id="saldo">Saldo: R$ 0,00</strong>
+    </div>
+
+  </section>
+
+  <!-- ================= CONFIGURACOES ================= -->
+  <section id="configuracoes" class="aba">
+
+    <h2>Categorias</h2>
+    <div class="box-config">
+      <input id="novaCategoria" placeholder="Nova categoria">
+      <button id="btnAddCategoria">Adicionar</button>
+      <ul id="listaCategorias"></ul>
+    </div>
+
+    <h2>Formas de Pagamento</h2>
+    <div class="box-config">
+      <input id="novoPagamento" placeholder="Nova forma de pagamento">
+      <button id="btnAddPagamento">Adicionar</button>
+      <ul id="listaPagamentos"></ul>
+    </div>
+
+  </section>
+
+</div>
+
+<!-- JS NA RAIZ -->
+<script src="script.js"></script>
+</body>
+</html>
