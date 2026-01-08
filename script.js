@@ -1,89 +1,219 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-  <meta charset="UTF-8">
-  <title>Controle Financeiro</title>
+/* ================== STORAGE ================== */
+const STORAGE = {
+  lancamentos: 'lancamentos',
+  categorias: 'categorias',
+  pagamentos: 'pagamentos'
+};
 
-  <!-- CSS NA RAIZ -->
-  <link rel="stylesheet" href="style.css">
-  <link rel="icon" href="data:,">
-</head>
-<body>
+let editId = null;
 
-<div class="app">
+/* ================== INIT ================== */
+document.addEventListener('DOMContentLoaded', () => {
+  iniciarListas();
+  renderCategorias();
+  renderPagamentos();
+  renderLancamentos();
+  configurarAbas();
+});
 
-  <header>
-    <h1>Controle Financeiro</h1>
-  </header>
+/* ================== UTIL ================== */
+const get = key => JSON.parse(localStorage.getItem(key)) || [];
+const set = (key, value) => localStorage.setItem(key, JSON.stringify(value));
 
-  <nav class="tabs">
-    <button class="active" data-aba="lancamentos">Lançamentos</button>
-    <button data-aba="configuracoes">Configurações</button>
-  </nav>
+const gerarId = () => Date.now();
 
-  <!-- ================= LANCAMENTOS ================= -->
-  <section id="lancamentos" class="aba ativa">
+function parseValor(valor) {
+  const n = parseFloat(valor.replace(/\./g, '').replace(',', '.'));
+  if (isNaN(n)) throw 'Valor inválido';
+  return n;
+}
 
-    <form id="formLancamento">
+/* ================== ABAS ================== */
+function configurarAbas() {
+  document.querySelectorAll('.tabs button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tabs button').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.aba').forEach(a => a.classList.remove('ativa'));
 
-      <select id="tipo" required>
-        <option value="">Tipo</option>
-        <option value="entrada">Entrada</option>
-        <option value="saida">Saída</option>
-      </select>
+      btn.classList.add('active');
+      document.getElementById(btn.dataset.aba).classList.add('ativa');
+    });
+  });
+}
 
-      <input id="valor" placeholder="Valor (ex: 5,99)" required>
+/* ================== LISTAS PADRÃO ================== */
+function iniciarListas() {
+  if (!localStorage.getItem(STORAGE.categorias)) {
+    set(STORAGE.categorias, ['Alimentação', 'Moradia', 'Transporte']);
+  }
+  if (!localStorage.getItem(STORAGE.pagamentos)) {
+    set(STORAGE.pagamentos, [
+      'Cartão de Crédito',
+      'Cartão de Débito',
+      'Pix',
+      'Dinheiro'
+    ]);
+  }
+}
 
-      <input
-        id="parcelas"
-        type="number"
-        min="1"
-        value="1"
-        placeholder="Parcelas"
-      >
+/* ================== CATEGORIAS ================== */
+function renderCategorias() {
+  const categorias = get(STORAGE.categorias);
+  const ul = document.getElementById('listaCategorias');
+  const select = document.getElementById('categoria');
 
-      <input id="local" placeholder="Local" required>
+  ul.innerHTML = '';
+  select.innerHTML = '<option value="">Categoria</option>';
 
-      <select id="categoria" required></select>
-      <select id="pagamento" required></select>
+  categorias.forEach((c, i) => {
+    ul.innerHTML += `
+      <li>
+        ${c}
+        <button onclick="removerCategoria(${i})">x</button>
+      </li>`;
+    select.innerHTML += `<option>${c}</option>`;
+  });
+}
 
-      <input type="month" id="mes" required>
+document.getElementById('btnAddCategoria').onclick = () => {
+  const input = document.getElementById('novaCategoria');
+  if (!input.value.trim()) return alert('Informe a categoria');
 
-      <button type="submit">Salvar</button>
-    </form>
+  const categorias = get(STORAGE.categorias);
+  categorias.push(input.value.trim());
+  set(STORAGE.categorias, categorias);
 
-    <ul id="listaLancamentos"></ul>
+  input.value = '';
+  renderCategorias();
+};
 
-    <div class="totais">
-      <span id="totalEntradas">Entradas: R$ 0,00</span>
-      <span id="totalSaidas">Saídas: R$ 0,00</span>
-      <strong id="saldo">Saldo: R$ 0,00</strong>
-    </div>
+function removerCategoria(i) {
+  const categorias = get(STORAGE.categorias);
+  categorias.splice(i, 1);
+  set(STORAGE.categorias, categorias);
+  renderCategorias();
+}
 
-  </section>
+/* ================== PAGAMENTOS ================== */
+function renderPagamentos() {
+  const pagamentos = get(STORAGE.pagamentos);
+  const ul = document.getElementById('listaPagamentos');
+  const select = document.getElementById('pagamento');
 
-  <!-- ================= CONFIGURACOES ================= -->
-  <section id="configuracoes" class="aba">
+  ul.innerHTML = '';
+  select.innerHTML = '<option value="">Forma de pagamento</option>';
 
-    <h2>Categorias</h2>
-    <div class="box-config">
-      <input id="novaCategoria" placeholder="Nova categoria">
-      <button id="btnAddCategoria">Adicionar</button>
-      <ul id="listaCategorias"></ul>
-    </div>
+  pagamentos.forEach((p, i) => {
+    ul.innerHTML += `
+      <li>
+        ${p}
+        <button onclick="removerPagamento(${i})">x</button>
+      </li>`;
+    select.innerHTML += `<option>${p}</option>`;
+  });
+}
 
-    <h2>Formas de Pagamento</h2>
-    <div class="box-config">
-      <input id="novoPagamento" placeholder="Nova forma de pagamento">
-      <button id="btnAddPagamento">Adicionar</button>
-      <ul id="listaPagamentos"></ul>
-    </div>
+document.getElementById('btnAddPagamento').onclick = () => {
+  const input = document.getElementById('novoPagamento');
+  if (!input.value.trim()) return alert('Informe a forma de pagamento');
 
-  </section>
+  const pagamentos = get(STORAGE.pagamentos);
+  pagamentos.push(input.value.trim());
+  set(STORAGE.pagamentos, pagamentos);
 
-</div>
+  input.value = '';
+  renderPagamentos();
+};
 
-<!-- JS NA RAIZ -->
-<script src="script.js"></script>
-</body>
-</html>
+function removerPagamento(i) {
+  const pagamentos = get(STORAGE.pagamentos);
+  pagamentos.splice(i, 1);
+  set(STORAGE.pagamentos, pagamentos);
+  renderPagamentos();
+}
+
+/* ================== LANCAMENTOS ================== */
+document.getElementById('formLancamento').addEventListener('submit', e => {
+  e.preventDefault();
+
+  try {
+    const lancamento = {
+      id: editId ?? gerarId(),
+      tipo: tipo.value,
+      valor: parseValor(valor.value),
+      parcelas: parseInt(parcelas.value) || 1,
+      local: local.value,
+      categoria: categoria.value,
+      pagamento: pagamento.value,
+      mes: mes.value
+    };
+
+    let lista = get(STORAGE.lancamentos);
+    lista = editId
+      ? lista.map(l => l.id === editId ? lancamento : l)
+      : [...lista, lancamento];
+
+    set(STORAGE.lancamentos, lista);
+
+    editId = null;
+    e.target.reset();
+    parcelas.value = 1;
+
+    renderLancamentos();
+
+  } catch (err) {
+    alert(err);
+  }
+});
+
+function renderLancamentos() {
+  const lista = get(STORAGE.lancamentos);
+  const ul = document.getElementById('listaLancamentos');
+  ul.innerHTML = '';
+
+  let entradas = 0;
+  let saidas = 0;
+
+  lista.forEach(l => {
+    ul.innerHTML += `
+      <li>
+        ${l.tipo.toUpperCase()} | R$ ${l.valor.toFixed(2)}
+        | ${l.categoria}
+        ${l.parcelas > 1 ? `| ${l.parcelas}x` : ''}
+        <button onclick="editar(${l.id})">✏️</button>
+        <button onclick="excluir(${l.id})">🗑</button>
+      </li>
+    `;
+
+    l.tipo === 'entrada'
+      ? entradas += l.valor
+      : saidas += l.valor;
+  });
+
+  totalEntradas.innerText = `Entradas: R$ ${entradas.toFixed(2)}`;
+  totalSaidas.innerText = `Saídas: R$ ${saidas.toFixed(2)}`;
+  saldo.innerText = `Saldo: R$ ${(entradas - saidas).toFixed(2)}`;
+}
+
+function editar(id) {
+  const l = get(STORAGE.lancamentos).find(x => x.id === id);
+  if (!l) return;
+
+  editId = id;
+  tipo.value = l.tipo;
+  valor.value = l.valor.toFixed(2).replace('.', ',');
+  parcelas.value = l.parcelas;
+  local.value = l.local;
+  categoria.value = l.categoria;
+  pagamento.value = l.pagamento;
+  mes.value = l.mes;
+}
+
+function excluir(id) {
+  if (!confirm('Excluir este lançamento?')) return;
+  set(
+    STORAGE.lancamentos,
+    get(STORAGE.lancamentos).filter(l => l.id !== id)
+  );
+  renderLancamentos();
+}
