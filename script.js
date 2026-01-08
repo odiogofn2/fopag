@@ -1,7 +1,19 @@
 let lancamentos = JSON.parse(localStorage.getItem("lancamentos")) || [];
+let categorias = JSON.parse(localStorage.getItem("categorias")) || [];
 let editandoId = null;
 
 const msg = document.getElementById("mensagem");
+
+if (categorias.length === 0) {
+  categorias = [
+    { id: gerarId(), nome: "Alimentação" },
+    { id: gerarId(), nome: "Transporte" },
+    { id: gerarId(), nome: "Moradia" },
+    { id: gerarId(), nome: "Lazer" },
+    { id: gerarId(), nome: "Outros" }
+  ];
+  salvarCategorias();
+}
 
 document.getElementById("parcelado").addEventListener("change", e => {
   document.getElementById("qtdParcelas").disabled = e.target.value !== "sim";
@@ -11,37 +23,93 @@ function gerarId() {
   return Date.now().toString(36) + Math.random().toString(36).substr(2);
 }
 
-function mostrarMensagem(texto) {
-  msg.textContent = texto;
+function mostrarMensagem(t) {
+  msg.textContent = t;
   setTimeout(() => msg.textContent = "", 3000);
 }
+
+/* ================= CATEGORIAS ================= */
+
+function abrirCategorias() {
+  document.getElementById("modalCategorias").style.display = "flex";
+  renderizarCategorias();
+}
+
+function fecharCategorias() {
+  document.getElementById("modalCategorias").style.display = "none";
+}
+
+function adicionarCategoria() {
+  const nome = document.getElementById("novaCategoria").value.trim();
+  if (!nome) return;
+  categorias.push({ id: gerarId(), nome });
+  salvarCategorias();
+  document.getElementById("novaCategoria").value = "";
+  renderizarCategorias();
+  renderizarSelectCategorias();
+}
+
+function editarCategoria(id) {
+  const c = categorias.find(x => x.id === id);
+  const novo = prompt("Editar categoria:", c.nome);
+  if (!novo) return;
+  c.nome = novo;
+  salvarCategorias();
+  renderizarCategorias();
+  renderizarSelectCategorias();
+}
+
+function excluirCategoria(id) {
+  if (!confirm("Excluir categoria?")) return;
+  categorias = categorias.filter(c => c.id !== id);
+  salvarCategorias();
+  renderizarCategorias();
+  renderizarSelectCategorias();
+}
+
+function salvarCategorias() {
+  localStorage.setItem("categorias", JSON.stringify(categorias));
+}
+
+function renderizarCategorias() {
+  const ul = document.getElementById("listaCategorias");
+  ul.innerHTML = "";
+  categorias.forEach(c => {
+    ul.innerHTML += `
+      <li>
+        <span>${c.nome}</span>
+        <div>
+          <button onclick="editarCategoria('${c.id}')">✏️</button>
+          <button onclick="excluirCategoria('${c.id}')">🗑️</button>
+        </div>
+      </li>
+    `;
+  });
+}
+
+function renderizarSelectCategorias() {
+  const sel = document.getElementById("categoria");
+  sel.innerHTML = `<option value="">Categoria</option>`;
+  categorias.forEach(c => {
+    sel.innerHTML += `<option value="${c.id}">${c.nome}</option>`;
+  });
+}
+
+/* ================= LANÇAMENTOS ================= */
 
 function salvarLancamento() {
   const tipo = tipoEl().value;
   const valorTotal = parseFloat(valorEl().value.replace(",", "."));
   const local = localEl().value;
+  const categoriaId = categoriaEl().value;
   const parcelado = document.getElementById("parcelado").value;
   const qtdParcelas = parseInt(document.getElementById("qtdParcelas").value) || 1;
 
-  if (!tipo || isNaN(valorTotal) || valorTotal <= 0 || !local) {
+  if (!tipo || !local || !categoriaId || isNaN(valorTotal) || valorTotal <= 0) {
     mostrarMensagem("Preencha todos os campos corretamente.");
     return;
   }
 
-  // edição simples (sem parcelamento)
-  if (editandoId) {
-    lancamentos = lancamentos.map(l =>
-      l.id === editandoId
-        ? { ...l, tipo, valor: valorTotal, local }
-        : l
-    );
-    salvarStorage();
-    limparFormulario();
-    renderizar();
-    return;
-  }
-
-  // À VISTA
   if (parcelado === "nao" || qtdParcelas === 1) {
     lancamentos.push({
       id: gerarId(),
@@ -49,87 +117,54 @@ function salvarLancamento() {
       tipo,
       valor: valorTotal,
       local,
+      categoriaId,
       parcelaAtual: 1,
       totalParcelas: 1,
       data: new Date().toISOString()
     });
-  }
-  // PARCELADO REAL
-  else {
-    const grupoId = gerarId();
+  } else {
+    const grupo = gerarId();
     const valorParcela = +(valorTotal / qtdParcelas).toFixed(2);
 
     for (let i = 0; i < qtdParcelas; i++) {
-      const data = new Date();
-      data.setMonth(data.getMonth() + i);
+      const d = new Date();
+      d.setMonth(d.getMonth() + i);
 
       lancamentos.push({
         id: gerarId(),
-        grupo: grupoId,
+        grupo,
         tipo,
         valor: valorParcela,
         local,
+        categoriaId,
         parcelaAtual: i + 1,
         totalParcelas: qtdParcelas,
-        data: data.toISOString()
+        data: d.toISOString()
       });
     }
   }
 
-  salvarStorage();
+  salvarLancamentos();
   limparFormulario();
   renderizar();
-}
-
-function editar(id) {
-  const l = lancamentos.find(x => x.id === id);
-  if (!l) return;
-
-  editandoId = id;
-  tipoEl().value = l.tipo;
-  valorEl().value = l.valor;
-  localEl().value = l.local;
-
-  document.getElementById("parcelado").value = "nao";
-  document.getElementById("qtdParcelas").disabled = true;
 }
 
 function excluir(id) {
-  const lancamento = lancamentos.find(l => l.id === id);
-  if (!lancamento) return;
+  const l = lancamentos.find(x => x.id === id);
+  if (!l) return;
 
-  // Lançamento à vista
-  if (!lancamento.grupo) {
-    if (!confirm("Excluir este lançamento?")) return;
-    lancamentos = lancamentos.filter(l => l.id !== id);
-  }
-  // Lançamento parcelado
-  else {
-    const opcao = prompt(
-      "Excluir parcela:\n\n" +
-      "1 = Somente esta parcela\n" +
-      "2 = TODAS as parcelas\n\n" +
-      "Cancelar = não excluir"
-    );
-
-    if (opcao === "1") {
-      lancamentos = lancamentos.filter(l => l.id !== id);
-    }
-    else if (opcao === "2") {
-      lancamentos = lancamentos.filter(l => l.grupo !== lancamento.grupo);
-    }
-    else {
-      return;
-    }
+  if (!l.grupo) {
+    if (!confirm("Excluir lançamento?")) return;
+    lancamentos = lancamentos.filter(x => x.id !== id);
+  } else {
+    const op = prompt("1 = Somente esta parcela\n2 = Todas as parcelas");
+    if (op === "1") lancamentos = lancamentos.filter(x => x.id !== id);
+    else if (op === "2") lancamentos = lancamentos.filter(x => x.grupo !== l.grupo);
+    else return;
   }
 
-  salvarStorage();
+  salvarLancamentos();
   renderizar();
-}
-
-
-function cancelarEdicao() {
-  limparFormulario();
 }
 
 function limparFormulario() {
@@ -137,12 +172,13 @@ function limparFormulario() {
   tipoEl().value = "";
   valorEl().value = "";
   localEl().value = "";
+  categoriaEl().value = "";
   document.getElementById("parcelado").value = "nao";
   document.getElementById("qtdParcelas").value = "";
   document.getElementById("qtdParcelas").disabled = true;
 }
 
-function salvarStorage() {
+function salvarLancamentos() {
   localStorage.setItem("lancamentos", JSON.stringify(lancamentos));
 }
 
@@ -150,41 +186,35 @@ function renderizar() {
   const lista = document.getElementById("lista");
   lista.innerHTML = "";
 
-  let entradas = 0, saidas = 0;
+  let ent = 0, sai = 0;
 
-  lancamentos
-    .sort((a, b) => new Date(a.data) - new Date(b.data))
-    .forEach(l => {
-      l.tipo === "entrada" ? entradas += l.valor : saidas += l.valor;
+  lancamentos.forEach(l => {
+    l.tipo === "entrada" ? ent += l.valor : sai += l.valor;
+    const cat = categorias.find(c => c.id === l.categoriaId)?.nome || "";
 
-      const parcelaInfo =
-        l.totalParcelas > 1
-          ? ` (${l.parcelaAtual}/${l.totalParcelas})`
-          : "";
+    lista.innerHTML += `
+      <li>
+        <div>
+          <div>${l.local} (${cat})</div>
+          <div class="valor ${l.tipo}">R$ ${l.valor.toFixed(2)}</div>
+        </div>
+        <div>
+          <button onclick="excluir('${l.id}')">🗑️</button>
+        </div>
+      </li>
+    `;
+  });
 
-      lista.innerHTML += `
-        <li>
-          <div class="info">
-            <div>${l.local}${parcelaInfo}</div>
-            <div class="valor ${l.tipo}">
-              R$ ${l.valor.toFixed(2)}
-            </div>
-          </div>
-          <div>
-            <button onclick="editar('${l.id}')">✏️</button>
-            <button onclick="excluir('${l.id}')">🗑️</button>
-          </div>
-        </li>
-      `;
-    });
-
-  document.getElementById("totalEntradas").textContent = `R$ ${entradas.toFixed(2)}`;
-  document.getElementById("totalSaidas").textContent = `R$ ${saidas.toFixed(2)}`;
-  document.getElementById("saldo").textContent = `R$ ${(entradas - saidas).toFixed(2)}`;
+  document.getElementById("totalEntradas").textContent = `R$ ${ent.toFixed(2)}`;
+  document.getElementById("totalSaidas").textContent = `R$ ${sai.toFixed(2)}`;
+  document.getElementById("saldo").textContent = `R$ ${(ent - sai).toFixed(2)}`;
 }
 
+/* HELPERS */
 const tipoEl = () => document.getElementById("tipo");
 const valorEl = () => document.getElementById("valor");
 const localEl = () => document.getElementById("local");
+const categoriaEl = () => document.getElementById("categoria");
 
+renderizarSelectCategorias();
 renderizar();
