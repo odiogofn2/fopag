@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <title>Controle Financeiro</title>
+<link rel="icon" href="/favicon.ico">
 
 <style>
 body {
@@ -45,6 +46,17 @@ button {
   border: none;
   cursor: pointer;
 }
+button:hover { opacity: .9; }
+
+.erro {
+  background: #f8d7da;
+  color: #721c24;
+  padding: 8px;
+  border-radius: 6px;
+  margin-bottom: 10px;
+  display: none;
+}
+
 .lancamento {
   border-left: 5px solid;
   padding: 10px;
@@ -52,6 +64,7 @@ button {
 }
 .entrada { border-color: green; }
 .saida { border-color: red; }
+
 .acoes {
   display: flex;
   gap: 8px;
@@ -73,6 +86,8 @@ button {
 </div>
 
 <div class="card">
+  <div class="erro" id="msgErro"></div>
+
   <input type="hidden" id="editandoId">
 
   <label>Tipo</label>
@@ -81,8 +96,8 @@ button {
     <option value="saida">Saída</option>
   </select>
 
-  <label>Valor</label>
-  <input type="number" id="valor" step="0.01">
+  <label>Valor (ex: 5,99 ou 6.99)</label>
+  <input type="text" id="valor">
 
   <label>Descrição</label>
   <input type="text" id="descricao">
@@ -90,7 +105,7 @@ button {
   <label>Local</label>
   <input type="text" id="local">
 
-  <button onclick="salvarLancamento()" id="btnSalvar">Salvar</button>
+  <button id="btnSalvar">Salvar</button>
 </div>
 
 <div class="card">
@@ -102,9 +117,154 @@ button {
 
 <script>
 /* ===== ESTADO ===== */
-window.lancamentos = JSON.parse(localStorage.getItem("lancamentos")) || [];
+let lancamentos = JSON.parse(localStorage.getItem("lancamentos")) || [];
 
 /* ===== DOM ===== */
-window.tipoInput = document.getElementById("tipo");
-window.valorInput = document.getElementById("valor");
-wi
+const tipoInput = document.getElementById("tipo");
+const valorInput = document.getElementById("valor");
+const descricaoInput = document.getElementById("descricao");
+const localInput = document.getElementById("local");
+const editandoIdInput = document.getElementById("editandoId");
+const lista = document.getElementById("lista");
+const saldoEl = document.getElementById("saldo");
+const btnSalvar = document.getElementById("btnSalvar");
+const msgErro = document.getElementById("msgErro");
+
+/* ===== UTIL ===== */
+function mostrarErro(msg) {
+  msgErro.innerText = msg;
+  msgErro.style.display = "block";
+}
+
+function limparErro() {
+  msgErro.style.display = "none";
+}
+
+function parseValor(valorTexto) {
+  if (!valorTexto) return NaN;
+  return parseFloat(valorTexto.replace(",", "."));
+}
+
+function formatar(valor) {
+  return valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
+function gerarId() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2);
+}
+
+function salvarStorage() {
+  localStorage.setItem("lancamentos", JSON.stringify(lancamentos));
+}
+
+function limparFormulario() {
+  tipoInput.value = "entrada";
+  valorInput.value = "";
+  descricaoInput.value = "";
+  localInput.value = "";
+  editandoIdInput.value = "";
+  btnSalvar.innerText = "Salvar";
+}
+
+/* ===== EVENTOS ===== */
+btnSalvar.addEventListener("click", () => {
+  limparErro();
+
+  const tipo = tipoInput.value;
+  const valor = parseValor(valorInput.value);
+  const descricao = descricaoInput.value.trim();
+  const local = localInput.value.trim();
+  const editandoId = editandoIdInput.value;
+
+  if (isNaN(valor) || valor <= 0) {
+    mostrarErro("Informe um valor válido. Ex: 5,99 ou 6.99");
+    return;
+  }
+
+  if (!descricao || !local) {
+    mostrarErro("Descrição e Local são obrigatórios.");
+    return;
+  }
+
+  if (editandoId) {
+    const l = lancamentos.find(x => x.id === editandoId);
+    if (!l) return;
+
+    l.tipo = tipo;
+    l.valor = valor;
+    l.descricao = descricao;
+    l.local = local;
+  } else {
+    lancamentos.unshift({
+      id: gerarId(),
+      tipo,
+      valor,
+      descricao,
+      local,
+      data: new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" }),
+
+      // BASE PARA PARCELAS
+      parcelado: false,
+      totalParcelas: 1,
+      parcelaAtual: 1,
+      grupoParcelamentoId: null
+    });
+  }
+
+  salvarStorage();
+  atualizarTela();
+  limparFormulario();
+});
+
+/* ===== CRUD ===== */
+function editar(id) {
+  const l = lancamentos.find(x => x.id === id);
+  if (!l) return;
+
+  tipoInput.value = l.tipo;
+  valorInput.value = l.valor.toString().replace(".", ",");
+  descricaoInput.value = l.descricao;
+  localInput.value = l.local;
+  editandoIdInput.value = l.id;
+  btnSalvar.innerText = "Atualizar";
+}
+
+function excluir(id) {
+  if (!confirm("Deseja excluir este lançamento?")) return;
+  lancamentos = lancamentos.filter(l => l.id !== id);
+  salvarStorage();
+  atualizarTela();
+}
+
+/* ===== UI ===== */
+function atualizarTela() {
+  lista.innerHTML = "";
+  let saldo = 0;
+
+  lancamentos.forEach(l => {
+    saldo += l.tipo === "entrada" ? l.valor : -l.valor;
+
+    const div = document.createElement("div");
+    div.className = `lancamento ${l.tipo}`;
+    div.innerHTML = `
+      <strong>${l.descricao}</strong><br>
+      Local: ${l.local}<br>
+      ${l.data}<br>
+      ${l.tipo === "entrada" ? "+" : "-"} ${formatar(l.valor)}
+      <div class="acoes">
+        <button onclick="editar('${l.id}')">✏️ Editar</button>
+        <button onclick="excluir('${l.id}')">🗑 Excluir</button>
+      </div>
+    `;
+    lista.appendChild(div);
+  });
+
+  saldoEl.innerText = "Saldo: " + formatar(saldo);
+}
+
+/* INIT */
+atualizarTela();
+</script>
+
+</body>
+</html>
