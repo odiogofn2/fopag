@@ -1,297 +1,62 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8">
   <title>Controle Financeiro</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <link rel="icon" href="data:," />
-
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #f4f6f8;
-      margin: 0;
-      padding: 20px;
-    }
-
-    h1 {
-      text-align: center;
-      margin-bottom: 20px;
-    }
-
-    .container {
-      max-width: 900px;
-      margin: auto;
-      background: #fff;
-      padding: 20px;
-      border-radius: 8px;
-      box-shadow: 0 2px 10px rgba(0,0,0,.1);
-    }
-
-    .form-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-      gap: 10px;
-      margin-bottom: 15px;
-    }
-
-    input, select, button {
-      padding: 10px;
-      font-size: 14px;
-    }
-
-    button {
-      cursor: pointer;
-      border: none;
-      border-radius: 4px;
-    }
-
-    .btn-salvar {
-      background: #2ecc71;
-      color: #fff;
-    }
-
-    .btn-cancelar {
-      background: #95a5a6;
-      color: #fff;
-    }
-
-    .mensagem {
-      margin: 10px 0;
-      color: red;
-      font-weight: bold;
-    }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 20px;
-    }
-
-    th, td {
-      padding: 10px;
-      border-bottom: 1px solid #ddd;
-      text-align: center;
-    }
-
-    th {
-      background: #f0f0f0;
-    }
-
-    .entrada {
-      color: green;
-      font-weight: bold;
-    }
-
-    .saida {
-      color: red;
-      font-weight: bold;
-    }
-
-    .acoes button {
-      margin: 0 3px;
-      padding: 6px 8px;
-      font-size: 12px;
-    }
-
-    .editar {
-      background: #3498db;
-      color: white;
-    }
-
-    .excluir {
-      background: #e74c3c;
-      color: white;
-    }
-
-    .resumo {
-      display: flex;
-      justify-content: space-between;
-      margin-top: 20px;
-      font-weight: bold;
-    }
-  </style>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="data:,">
 </head>
 <body>
 
-<h1>💰 Controle Financeiro</h1>
+<div class="app">
 
-<div class="container">
+  <header class="topo">
+    <h1>💰 Finanças</h1>
+    <span id="saldo" class="saldo">R$ 0,00</span>
+  </header>
 
-  <div class="mensagem" id="mensagem"></div>
+  <section class="resumo">
+    <div class="card entrada">
+      <span>Entradas</span>
+      <strong id="totalEntradas">R$ 0,00</strong>
+    </div>
+    <div class="card saida">
+      <span>Saídas</span>
+      <strong id="totalSaidas">R$ 0,00</strong>
+    </div>
+  </section>
 
-  <div class="form-grid">
+  <section class="formulario">
     <select id="tipo">
       <option value="">Tipo</option>
       <option value="entrada">Entrada</option>
       <option value="saida">Saída</option>
     </select>
 
-    <input type="text" id="valor" placeholder="Valor (ex: 5,99)" />
+    <input type="text" id="valor" placeholder="Valor (ex: 5,99)">
+    <input type="text" id="local" placeholder="Descrição / Local">
 
-    <input type="text" id="local" placeholder="Local / Descrição" />
-
-    <!-- BASE PARA PARCELAS -->
     <select id="parcelado">
       <option value="nao">À vista</option>
       <option value="sim">Parcelado</option>
     </select>
 
-    <input type="number" id="qtdParcelas" placeholder="Parcelas" min="1" disabled />
-  </div>
+    <input type="number" id="qtdParcelas" placeholder="Parcelas" disabled>
 
-  <button class="btn-salvar" onclick="salvarLancamento()">Salvar</button>
-  <button class="btn-cancelar" onclick="cancelarEdicao()">Cancelar</button>
+    <button onclick="salvarLancamento()">Salvar</button>
+    <button class="cancelar" onclick="cancelarEdicao()">Cancelar</button>
 
-  <table>
-    <thead>
-      <tr>
-        <th>Tipo</th>
-        <th>Valor</th>
-        <th>Local</th>
-        <th>Parcelas</th>
-        <th>Ações</th>
-      </tr>
-    </thead>
-    <tbody id="lista"></tbody>
-  </table>
+    <div id="mensagem" class="mensagem"></div>
+  </section>
 
-  <div class="resumo">
-    <div>Entradas: R$ <span id="totalEntradas">0.00</span></div>
-    <div>Saídas: R$ <span id="totalSaidas">0.00</span></div>
-    <div>Saldo: R$ <span id="saldo">0.00</span></div>
-  </div>
+  <section class="lista">
+    <h2>Lançamentos</h2>
+    <ul id="lista"></ul>
+  </section>
 
 </div>
 
-<script>
-let lancamentos = JSON.parse(localStorage.getItem("lancamentos")) || [];
-let editandoId = null;
-
-const msg = document.getElementById("mensagem");
-
-document.getElementById("parcelado").addEventListener("change", e => {
-  document.getElementById("qtdParcelas").disabled = e.target.value !== "sim";
-});
-
-function gerarId() {
-  return Date.now().toString(36) + Math.random().toString(36).substr(2);
-}
-
-function mostrarMensagem(texto) {
-  msg.textContent = texto;
-  setTimeout(() => msg.textContent = "", 3000);
-}
-
-function salvarLancamento() {
-  const tipo = tipoEl().value;
-  const valorRaw = valorEl().value.replace(",", ".");
-  const valor = parseFloat(valorRaw);
-  const local = localEl().value;
-  const parcelado = parceladoEl().value;
-  const qtdParcelas = parseInt(qtdParcelasEl().value) || 1;
-
-  if (!tipo || isNaN(valor) || valor <= 0 || !local) {
-    mostrarMensagem("Preencha todos os campos corretamente.");
-    return;
-  }
-
-  const dados = {
-    id: editandoId || gerarId(),
-    tipo,
-    valor,
-    local,
-    parcelado,
-    qtdParcelas,
-    data: new Date().toISOString()
-  };
-
-  if (editandoId) {
-    lancamentos = lancamentos.map(l => l.id === editandoId ? dados : l);
-  } else {
-    lancamentos.push(dados);
-  }
-
-  salvarStorage();
-  limparFormulario();
-  renderizar();
-}
-
-function editar(id) {
-  const l = lancamentos.find(x => x.id === id);
-  if (!l) return;
-
-  editandoId = id;
-  tipoEl().value = l.tipo;
-  valorEl().value = l.valor;
-  localEl().value = l.local;
-  parceladoEl().value = l.parcelado;
-  qtdParcelasEl().value = l.qtdParcelas;
-  qtdParcelasEl().disabled = l.parcelado !== "sim";
-}
-
-function excluir(id) {
-  if (!confirm("Deseja excluir este lançamento?")) return;
-  lancamentos = lancamentos.filter(l => l.id !== id);
-  salvarStorage();
-  renderizar();
-}
-
-function cancelarEdicao() {
-  limparFormulario();
-}
-
-function limparFormulario() {
-  editandoId = null;
-  tipoEl().value = "";
-  valorEl().value = "";
-  localEl().value = "";
-  parceladoEl().value = "nao";
-  qtdParcelasEl().value = "";
-  qtdParcelasEl().disabled = true;
-}
-
-function salvarStorage() {
-  localStorage.setItem("lancamentos", JSON.stringify(lancamentos));
-}
-
-function renderizar() {
-  const tbody = document.getElementById("lista");
-  tbody.innerHTML = "";
-
-  let entradas = 0, saidas = 0;
-
-  lancamentos.forEach(l => {
-    if (l.tipo === "entrada") entradas += l.valor;
-    else saidas += l.valor;
-
-    tbody.innerHTML += `
-      <tr>
-        <td class="${l.tipo}">${l.tipo}</td>
-        <td>R$ ${l.valor.toFixed(2)}</td>
-        <td>${l.local}</td>
-        <td>${l.parcelado === "sim" ? l.qtdParcelas + "x" : "-"}</td>
-        <td class="acoes">
-          <button class="editar" onclick="editar('${l.id}')">Editar</button>
-          <button class="excluir" onclick="excluir('${l.id}')">Excluir</button>
-        </td>
-      </tr>
-    `;
-  });
-
-  document.getElementById("totalEntradas").textContent = entradas.toFixed(2);
-  document.getElementById("totalSaidas").textContent = saidas.toFixed(2);
-  document.getElementById("saldo").textContent = (entradas - saidas).toFixed(2);
-}
-
-const tipoEl = () => document.getElementById("tipo");
-const valorEl = () => document.getElementById("valor");
-const localEl = () => document.getElementById("local");
-const parceladoEl = () => document.getElementById("parcelado");
-const qtdParcelasEl = () => document.getElementById("qtdParcelas");
-
-renderizar();
-</script>
-
+<script src="script.js"></script>
 </body>
 </html>
