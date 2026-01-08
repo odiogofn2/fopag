@@ -95,11 +95,38 @@ function editar(id) {
 }
 
 function excluir(id) {
-  if (!confirm("Excluir este lançamento?")) return;
-  lancamentos = lancamentos.filter(l => l.id !== id);
+  const lancamento = lancamentos.find(l => l.id === id);
+  if (!lancamento) return;
+
+  // Lançamento à vista
+  if (!lancamento.grupo) {
+    if (!confirm("Excluir este lançamento?")) return;
+    lancamentos = lancamentos.filter(l => l.id !== id);
+  }
+  // Lançamento parcelado
+  else {
+    const opcao = prompt(
+      "Excluir parcela:\n\n" +
+      "1 = Somente esta parcela\n" +
+      "2 = TODAS as parcelas\n\n" +
+      "Cancelar = não excluir"
+    );
+
+    if (opcao === "1") {
+      lancamentos = lancamentos.filter(l => l.id !== id);
+    }
+    else if (opcao === "2") {
+      lancamentos = lancamentos.filter(l => l.grupo !== lancamento.grupo);
+    }
+    else {
+      return;
+    }
+  }
+
   salvarStorage();
   renderizar();
 }
+
 
 function cancelarEdicao() {
   limparFormulario();
