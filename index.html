@@ -7,86 +7,57 @@
 <style>
 body {
   font-family: Arial, sans-serif;
-  background: linear-gradient(135deg, #1e3c72, #2a5298);
+  background: #1e3c72;
   padding: 20px;
 }
-
 .container {
   max-width: 720px;
   margin: auto;
 }
-
 h1 {
   text-align: center;
-  color: white;
+  color: #fff;
 }
-
 .card {
-  background: white;
+  background: #fff;
   padding: 15px;
   border-radius: 10px;
   margin-bottom: 15px;
-  box-shadow: 0 5px 15px rgba(0,0,0,0.15);
 }
-
 .saldo {
   font-size: 22px;
   text-align: center;
   font-weight: bold;
 }
-
 label {
   display: block;
   margin-top: 10px;
   font-weight: bold;
 }
-
 input, select, button {
   width: 100%;
   padding: 8px;
   margin-top: 5px;
-  border-radius: 6px;
-  border: 1px solid #ccc;
 }
-
 button {
   background: #2a5298;
-  color: white;
+  color: #fff;
   border: none;
   cursor: pointer;
-  margin-top: 12px;
 }
-
-button.editar {
-  background: #f0ad4e;
-}
-
-button.excluir {
-  background: #d9534f;
-}
-
-button:hover {
-  opacity: 0.9;
-}
-
 .lancamento {
-  border-left: 6px solid;
+  border-left: 5px solid;
   padding: 10px;
   margin-bottom: 10px;
-  border-radius: 6px;
 }
-
 .entrada { border-color: green; }
 .saida { border-color: red; }
-
 .acoes {
   display: flex;
-  gap: 10px;
+  gap: 8px;
   margin-top: 8px;
 }
-
 .acoes button {
-  flex: 1;
   font-size: 12px;
 }
 </style>
@@ -110,7 +81,7 @@ button:hover {
     <option value="saida">Saída</option>
   </select>
 
-  <label>Valor (R$)</label>
+  <label>Valor</label>
   <input type="number" id="valor" step="0.01">
 
   <label>Descrição</label>
@@ -119,7 +90,7 @@ button:hover {
   <label>Local</label>
   <input type="text" id="local">
 
-  <button id="btnSalvar" onclick="salvarLancamento()">Salvar</button>
+  <button onclick="salvarLancamento()" id="btnSalvar">Salvar</button>
 </div>
 
 <div class="card">
@@ -130,130 +101,10 @@ button:hover {
 </div>
 
 <script>
-/* ====== ESTADO ====== */
-let lancamentos = JSON.parse(localStorage.getItem("lancamentos")) || [];
+/* ===== ESTADO ===== */
+window.lancamentos = JSON.parse(localStorage.getItem("lancamentos")) || [];
 
-/* ====== DOM ====== */
-const tipoInput = document.getElementById("tipo");
-const valorInput = document.getElementById("valor");
-const descricaoInput = document.getElementById("descricao");
-const localInput = document.getElementById("local");
-const editandoIdInput = document.getElementById("editandoId");
-const lista = document.getElementById("lista");
-const saldoEl = document.getElementById("saldo");
-const btnSalvar = document.getElementById("btnSalvar");
-
-/* ====== FUNÇÕES ====== */
-function gerarId() {
-  return Date.now().toString(36) + Math.random().toString(36).slice(2);
-}
-
-function salvarStorage() {
-  localStorage.setItem("lancamentos", JSON.stringify(lancamentos));
-}
-
-function formatar(valor) {
-  return valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-}
-
-function limparFormulario() {
-  tipoInput.value = "entrada";
-  valorInput.value = "";
-  descricaoInput.value = "";
-  localInput.value = "";
-  editandoIdInput.value = "";
-  btnSalvar.innerText = "Salvar";
-}
-
-function salvarLancamento() {
-  const tipo = tipoInput.value;
-  const valor = parseFloat(valorInput.value);
-  const descricao = descricaoInput.value.trim();
-  const local = localInput.value.trim();
-  const editandoId = editandoIdInput.value;
-
-  if (!valor || !descricao || !local) {
-    alert("Preencha todos os campos");
-    return;
-  }
-
-  if (editandoId) {
-    const l = lancamentos.find(x => x.id === editandoId);
-    if (!l) return;
-
-    l.tipo = tipo;
-    l.valor = valor;
-    l.descricao = descricao;
-    l.local = local;
-  } else {
-    lancamentos.unshift({
-      id: gerarId(),
-      tipo,
-      valor,
-      descricao,
-      local,
-      data: new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" }),
-
-      // BASE PARA PARCELAS
-      parcelado: false,
-      totalParcelas: 1,
-      parcelaAtual: 1,
-      grupoParcelamentoId: null
-    });
-  }
-
-  salvarStorage();
-  atualizarTela();
-  limparFormulario();
-}
-
-function editar(id) {
-  const l = lancamentos.find(x => x.id === id);
-  if (!l) return;
-
-  tipoInput.value = l.tipo;
-  valorInput.value = l.valor;
-  descricaoInput.value = l.descricao;
-  localInput.value = l.local;
-  editandoIdInput.value = l.id;
-  btnSalvar.innerText = "Atualizar";
-}
-
-function excluir(id) {
-  if (!confirm("Deseja excluir este lançamento?")) return;
-  lancamentos = lancamentos.filter(l => l.id !== id);
-  salvarStorage();
-  atualizarTela();
-}
-
-function atualizarTela() {
-  lista.innerHTML = "";
-  let saldo = 0;
-
-  lancamentos.forEach(l => {
-    saldo += l.tipo === "entrada" ? l.valor : -l.valor;
-
-    const div = document.createElement("div");
-    div.className = `lancamento ${l.tipo}`;
-    div.innerHTML = `
-      <strong>${l.descricao}</strong><br>
-      Local: ${l.local}<br>
-      ${l.data}<br>
-      ${l.tipo === "entrada" ? "+" : "-"} ${formatar(l.valor)}
-      <div class="acoes">
-        <button class="editar" onclick="editar('${l.id}')">✏️ Editar</button>
-        <button class="excluir" onclick="excluir('${l.id}')">🗑 Excluir</button>
-      </div>
-    `;
-    lista.appendChild(div);
-  });
-
-  saldoEl.innerText = "Saldo: " + formatar(saldo);
-}
-
-/* INIT */
-atualizarTela();
-</script>
-
-</body>
-</html>
+/* ===== DOM ===== */
+window.tipoInput = document.getElementById("tipo");
+window.valorInput = document.getElementById("valor");
+wi
