@@ -15,14 +15,27 @@
     <h1>Controle Financeiro</h1>
   </header>
 
-  <nav class="tabs">
+  <!-- LOGIN (simples) -->
+  <section id="authBox" class="aba ativa" style="display:none;">
+    <h2>Acesso</h2>
+    <form id="formAuth">
+      <input id="authEmail" type="email" placeholder="Seu e-mail" required>
+      <input id="authPass" type="password" placeholder="Senha" required>
+      <button type="submit">Entrar / Cadastrar</button>
+    </form>
+    <div style="margin-top:10px;">
+      <button id="btnLogout" type="button" style="display:none;">Sair</button>
+    </div>
+  </section>
+
+  <nav class="tabs" id="tabs" style="display:none;">
     <button class="active" data-aba="lancamentos">Lançamentos</button>
     <button data-aba="graficos">Gráficos</button>
     <button data-aba="configuracoes">Configurações</button>
   </nav>
 
   <!-- ================= LANCAMENTOS ================= -->
-  <section id="lancamentos" class="aba ativa">
+  <section id="lancamentos" class="aba ativa" style="display:none;">
 
     <form id="formLancamento">
       <select id="tipo" required>
@@ -40,13 +53,11 @@
       <select id="categoria" required></select>
       <select id="pagamento" required></select>
 
-      <!-- mês do lançamento -->
       <input type="month" id="mes" required>
 
       <button type="submit">Salvar</button>
     </form>
 
-    <!-- filtro por mês -->
     <input type="month" id="mesFiltro">
 
     <ul id="listaLancamentos"></ul>
@@ -60,7 +71,7 @@
   </section>
 
   <!-- ================= GRAFICOS ================= -->
-  <section id="graficos" class="aba">
+  <section id="graficos" class="aba" style="display:none;">
     <h2>Gráficos</h2>
 
     <canvas id="graficoMensal" height="110"></canvas>
@@ -69,7 +80,7 @@
   </section>
 
   <!-- ================= CONFIGURACOES ================= -->
-  <section id="configuracoes" class="aba">
+  <section id="configuracoes" class="aba" style="display:none;">
 
     <h2>Categorias</h2>
     <div class="box-config">
@@ -85,12 +96,16 @@
       <ul id="listaPagamentos"></ul>
     </div>
 
+    <div style="margin-top:20px;">
+      <button id="btnLogout2" type="button">Sair</button>
+    </div>
+
   </section>
 
 </div>
 
-<!-- Chart.js antes do script.js -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="script.js"></script>
 </body>
 </html>
