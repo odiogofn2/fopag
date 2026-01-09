@@ -52,7 +52,7 @@
         <option value="saida">Saída</option>
       </select>
 
-      <input id="valor" placeholder="Valor (ex: 5,99 ou 5.99)" required>
+      <input id="valor" placeholder="Valor total (ex: 300,00)" required>
 
       <input id="parcelas" type="number" min="1" value="1" placeholder="Parcelas">
 
@@ -63,6 +63,19 @@
       <select id="banco" required></select>
 
       <input type="month" id="mes" required>
+
+      <!-- NOVO: DIVIDIR COM TERCEIROS -->
+      <div style="display:grid; gap:8px;">
+        <label style="font-size:13px; color:#6b7280;">
+          Dividir com terceiros (selecione 1 ou mais)
+        </label>
+        <select id="terceiros" multiple></select>
+        <label style="display:flex; gap:8px; align-items:center; font-size:13px; color:#6b7280;">
+          <input type="checkbox" id="dividirAuto">
+          Dividir automaticamente (cria 1 lançamento por pessoa + “Só eu”)
+        </label>
+        <small style="color:#6b7280;">Dica: segure Ctrl (ou Cmd) para marcar mais de um.</small>
+      </div>
 
       <button type="submit">Salvar</button>
     </form>
@@ -111,6 +124,14 @@
       <input id="novoBanco" placeholder="Novo banco">
       <button id="btnAddBanco" type="button">Adicionar</button>
       <ul id="listaBancos"></ul>
+    </div>
+
+    <!-- NOVO: TERCEIROS -->
+    <h2>Terceiros</h2>
+    <div class="box-config">
+      <input id="novoTerceiro" placeholder="Nome do terceiro">
+      <button id="btnAddTerceiro" type="button">Adicionar</button>
+      <ul id="listaTerceiros"></ul>
     </div>
 
     <div style="margin-top:20px;">
