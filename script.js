@@ -2,7 +2,6 @@
 const SUPABASE_URL = "https://fwzdxtpkirkyygzoezjx.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ3emR4dHBraXJreXlnem9lemp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc4OTE3MjcsImV4cCI6MjA4MzQ2NzcyN30.JhZaeArVoReH150Z6seCKu8AM1qw9PeZayLfTtfJqIQ";
 
-// SDK é window.supabase. Cliente único é window.__sb.
 window.__sb = window.__sb || window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const sb = window.__sb;
 
@@ -12,6 +11,7 @@ let sessionUser = null;
 let categories = [];
 let paymentMethods = [];
 let banks = [];
+let thirdParties = [];
 let transactions = [];
 
 let editId = null;
@@ -59,17 +59,16 @@ function parseValor(valor) {
   return +n.toFixed(2);
 }
 
-// Grava no Supabase como string "YYYY-MM-01" (evita bug de timezone)
 function monthToDbDate(yyyyMm) {
   if (!yyyyMm || !/^\d{4}-\d{2}$/.test(yyyyMm)) throw "Selecione o mês";
   return `${yyyyMm}-01`;
 }
 
-// Soma meses sem Date (evita timezone)
+// soma meses sem Date/timezone
 function somarMes(yyyyMm, offset) {
   const [y0, m0] = yyyyMm.split("-").map(Number);
   let y = y0;
-  let m = m0 + offset; // 1..12
+  let m = m0 + offset;
   while (m > 12) { m -= 12; y += 1; }
   while (m < 1)  { m += 12; y -= 1; }
   return `${y}-${String(m).padStart(2, "0")}`;
@@ -83,6 +82,17 @@ function getMesFiltro() {
 function mesesOrdenados(lista) {
   const s = new Set(lista.map(t => t.month_str).filter(Boolean));
   return Array.from(s).sort((a, b) => a.localeCompare(b));
+}
+
+function getSelectedThirdIds() {
+  const sel = document.getElementById("terceiros");
+  return Array.from(sel.selectedOptions).map(o => o.value);
+}
+
+function participanteLabel(t) {
+  if (t.is_self) return "Só eu";
+  const nome = thirdParties.find(x => x.id === t.third_party_id)?.name;
+  return nome || "Terceiro";
 }
 
 /* ================== AUTH ================== */
@@ -102,7 +112,6 @@ function configurarAuthUI() {
     if (res.error) {
       const sign = await sb.auth.signUp({ email, password: pass });
       if (sign.error) return alert(sign.error.message);
-
       return alert("Conta criada! Se exigir confirmação por e-mail, confirme e tente entrar novamente.");
     }
   });
@@ -178,7 +187,13 @@ function configurarFiltroMes() {
 
 /* ================== LOAD ================== */
 async function carregarTudo() {
-  await Promise.all([carregarCategorias(), carregarPagamentos(), carregarBancos(), carregarTransacoes()]);
+  await Promise.all([
+    carregarCategorias(),
+    carregarPagamentos(),
+    carregarBancos(),
+    carregarTerceiros(),
+    carregarTransacoes()
+  ]);
 }
 
 async function carregarCategorias() {
@@ -199,14 +214,19 @@ async function carregarBancos() {
   banks = data || [];
 }
 
+async function carregarTerceiros() {
+  const { data, error } = await sb.from("third_parties").select("id,name").order("name");
+  if (error) return alert(error.message);
+  thirdParties = data || [];
+}
+
 async function carregarTransacoes() {
   const { data, error } = await sb.from("transactions")
-    .select("id, group_id, type, amount, description, month, installment_current, installments_total, category_id, payment_method_id, bank_id")
+    .select("id, group_id, split_id, type, amount, description, month, installment_current, installments_total, category_id, payment_method_id, bank_id, third_party_id, is_self")
     .order("month", { ascending: true });
 
   if (error) return alert(error.message);
 
-  // ✅ BUG FIX: month vem "YYYY-MM-DD" (string). Pega mês por slice, sem Date/timezone.
   transactions = (data || []).map(t => ({
     ...t,
     month_str: (typeof t.month === "string") ? t.month.slice(0, 7) : ""
@@ -229,6 +249,7 @@ function renderTudo() {
   renderCategorias();
   renderPagamentos();
   renderBancos();
+  renderTerceiros();
   renderLancamentos();
 }
 
@@ -286,6 +307,24 @@ function renderBancos() {
   });
 }
 
+function renderTerceiros() {
+  const ul = document.getElementById("listaTerceiros");
+  const select = document.getElementById("terceiros");
+
+  ul.innerHTML = "";
+  select.innerHTML = "";
+
+  thirdParties.forEach((t) => {
+    ul.innerHTML += `
+      <li>
+        ${t.name}
+        <button type="button" onclick="editarTerceiro('${t.id}')">✎</button>
+        <button type="button" onclick="removerTerceiro('${t.id}')">✕</button>
+      </li>`;
+    select.innerHTML += `<option value="${t.id}">${t.name}</option>`;
+  });
+}
+
 function renderLancamentos() {
   const ul = document.getElementById("listaLancamentos");
   ul.innerHTML = "";
@@ -299,11 +338,12 @@ function renderLancamentos() {
     const catName = categories.find(c => c.id === t.category_id)?.name || "";
     const payName = paymentMethods.find(p => p.id === t.payment_method_id)?.name || "";
     const bankName = banks.find(b => b.id === t.bank_id)?.name || "";
+    const partName = participanteLabel(t);
 
     ul.innerHTML += `
       <li>
         ${t.type.toUpperCase()} | ${t.month_str} | ${fmtBRL(t.amount)}
-        | ${catName} | ${payName} | ${bankName}
+        | ${catName} | ${payName} | ${bankName} | ${partName}
         ${t.installments_total > 1 ? `| ${t.installment_current}/${t.installments_total}` : ""}
         <button type="button" onclick="editarLancamento('${t.id}')">✏️</button>
         <button type="button" onclick="excluirLancamento('${t.id}')">🗑️</button>
@@ -319,143 +359,146 @@ function renderLancamentos() {
   document.getElementById("saldo").innerText = `Saldo: ${fmtBRL(entradas - saidas)}`;
 }
 
-/* ================== BIND CONFIG ================== */
+/* ================== CONFIG BINDS ================== */
 function bindConfigButtons() {
   document.getElementById("btnAddCategoria")?.addEventListener("click", addCategoria);
   document.getElementById("btnAddPagamento")?.addEventListener("click", addPagamento);
   document.getElementById("btnAddBanco")?.addEventListener("click", addBanco);
+  document.getElementById("btnAddTerceiro")?.addEventListener("click", addTerceiro);
 }
 
-/* ================== CRUD: CATEGORIAS ================== */
+/* ================== CRUD CONFIG (iguais ao seu padrão) ================== */
 async function addCategoria() {
   const input = document.getElementById("novaCategoria");
   const name = input.value.trim();
   if (!name) return alert("Informe a categoria");
-
   const { error } = await sb.from("categories").insert({ user_id: sessionUser.id, name });
   if (error) return alert(error.message);
-
   input.value = "";
   await carregarCategorias();
   renderCategorias();
   atualizarGraficosSeAbaAtiva();
 }
-
 async function editarCategoria(id) {
   const atual = categories.find(c => c.id === id)?.name || "";
   const novo = prompt("Editar categoria:", atual);
   if (!novo) return;
-
   const name = novo.trim();
   if (!name) return;
-
   const { error } = await sb.from("categories").update({ name }).eq("id", id);
   if (error) return alert(error.message);
-
   await carregarCategorias();
   renderCategorias();
   renderLancamentos();
   atualizarGraficosSeAbaAtiva();
 }
-
 async function removerCategoria(id) {
   if (!confirm("Excluir categoria? (lançamentos ficam sem categoria)")) return;
-
   const { error } = await sb.from("categories").delete().eq("id", id);
   if (error) return alert(error.message);
-
   await carregarCategorias();
   await carregarTransacoes();
   renderTudo();
   atualizarGraficosSeAbaAtiva();
 }
 
-/* ================== CRUD: PAGAMENTOS ================== */
 async function addPagamento() {
   const input = document.getElementById("novoPagamento");
   const name = input.value.trim();
   if (!name) return alert("Informe a forma de pagamento");
-
   const { error } = await sb.from("payment_methods").insert({ user_id: sessionUser.id, name });
   if (error) return alert(error.message);
-
   input.value = "";
   await carregarPagamentos();
   renderPagamentos();
   atualizarGraficosSeAbaAtiva();
 }
-
 async function editarPagamento(id) {
   const atual = paymentMethods.find(p => p.id === id)?.name || "";
   const novo = prompt("Editar forma de pagamento:", atual);
   if (!novo) return;
-
   const name = novo.trim();
   if (!name) return;
-
   const { error } = await sb.from("payment_methods").update({ name }).eq("id", id);
   if (error) return alert(error.message);
-
   await carregarPagamentos();
   renderPagamentos();
   renderLancamentos();
   atualizarGraficosSeAbaAtiva();
 }
-
 async function removerPagamento(id) {
   if (!confirm("Excluir forma de pagamento? (lançamentos ficam sem pagamento)")) return;
-
   const { error } = await sb.from("payment_methods").delete().eq("id", id);
   if (error) return alert(error.message);
-
   await carregarPagamentos();
   await carregarTransacoes();
   renderTudo();
   atualizarGraficosSeAbaAtiva();
 }
 
-/* ================== CRUD: BANCOS ================== */
 async function addBanco() {
   const input = document.getElementById("novoBanco");
   const name = input.value.trim();
   if (!name) return alert("Informe o banco");
-
   const { error } = await sb.from("banks").insert({ user_id: sessionUser.id, name });
   if (error) return alert(error.message);
-
   input.value = "";
   await carregarBancos();
   renderBancos();
   atualizarGraficosSeAbaAtiva();
 }
-
 async function editarBanco(id) {
   const atual = banks.find(b => b.id === id)?.name || "";
   const novo = prompt("Editar banco:", atual);
   if (!novo) return;
-
   const name = novo.trim();
   if (!name) return;
-
   const { error } = await sb.from("banks").update({ name }).eq("id", id);
   if (error) return alert(error.message);
-
   await carregarBancos();
   renderBancos();
   renderLancamentos();
   atualizarGraficosSeAbaAtiva();
 }
-
 async function removerBanco(id) {
   if (!confirm("Excluir banco? (lançamentos ficam sem banco)")) return;
-
   const { error } = await sb.from("banks").delete().eq("id", id);
   if (error) return alert(error.message);
-
   await carregarBancos();
   await carregarTransacoes();
   renderTudo();
   atualizarGraficosSeAbaAtiva();
+}
+
+async function addTerceiro() {
+  const input = document.getElementById("novoTerceiro");
+  const name = input.value.trim();
+  if (!name) return alert("Informe o nome do terceiro");
+  const { error } = await sb.from("third_parties").insert({ user_id: sessionUser.id, name });
+  if (error) return alert(error.message);
+  input.value = "";
+  await carregarTerceiros();
+  renderTerceiros();
+}
+async function editarTerceiro(id) {
+  const atual = thirdParties.find(t => t.id === id)?.name || "";
+  const novo = prompt("Editar terceiro:", atual);
+  if (!novo) return;
+  const name = novo.trim();
+  if (!name) return;
+  const { error } = await sb.from("third_parties").update({ name }).eq("id", id);
+  if (error) return alert(error.message);
+  await carregarTerceiros();
+  renderTerceiros();
+  renderLancamentos();
+}
+async function removerTerceiro(id) {
+  if (!confirm("Excluir terceiro?")) return;
+  const { error } = await sb.from("third_parties").delete().eq("id", id);
+  if (error) return alert(error.message);
+  await carregarTerceiros();
+  await carregarTransacoes();
+  renderTudo();
 }
 
 /* ================== LANÇAMENTOS ================== */
@@ -471,10 +514,13 @@ async function salvarLancamento(e) {
     const category_id = document.getElementById("categoria").value;
     const payment_method_id = document.getElementById("pagamento").value;
     const bank_id = document.getElementById("banco").value;
-    const baseMonthStr = document.getElementById("mes").value; // "YYYY-MM"
+    const baseMonthStr = document.getElementById("mes").value;
+    const dividirAuto = document.getElementById("dividirAuto").checked;
 
     let installments = parseInt(document.getElementById("parcelas").value, 10);
     if (isNaN(installments) || installments < 1) installments = 1;
+
+    const thirdIds = getSelectedThirdIds();
 
     if (!type) throw "Selecione o tipo";
     if (!description) throw "Informe o local/descrição";
@@ -485,7 +531,7 @@ async function salvarLancamento(e) {
 
     const btnSubmit = document.querySelector("#formLancamento button[type='submit']");
 
-    // ✅ EDITAR
+    // EDITAR (edita apenas 1 linha)
     if (editId) {
       const { error } = await sb.from("transactions")
         .update({
@@ -496,6 +542,7 @@ async function salvarLancamento(e) {
           payment_method_id,
           bank_id,
           month: monthToDbDate(baseMonthStr)
+          // não muda split/terceiro no edit simples
         })
         .eq("id", editId);
 
@@ -513,33 +560,114 @@ async function salvarLancamento(e) {
       return;
     }
 
-    // ✅ NOVO (parcelas por mês)
+    // ===== NOVO =====
+    // Se dividirAuto e tiver terceiros selecionados -> cria 1 linha por pessoa + você
+    const usarSplit = dividirAuto && thirdIds.length > 0;
+    const split_id = usarSplit ? crypto.randomUUID() : null;
+
+    // parcelas: group_id mantém como antes (parcelas)
     const group_id = installments > 1 ? crypto.randomUUID() : null;
 
-    const base = +(amountTotal / installments).toFixed(2);
-    let acumulado = 0;
+    // função para inserir as linhas de um mês (parcela)
+    const inserirLinhasDoMes = async (yyyyMm, totalMes) => {
+      // sem split: uma linha só (Só eu)
+      if (!usarSplit) {
+        return [{
+          user_id: sessionUser.id,
+          group_id,
+          split_id: null,
+          third_party_id: null,
+          is_self: true,
+          type,
+          amount: totalMes,
+          description,
+          category_id,
+          payment_method_id,
+          bank_id,
+          month: monthToDbDate(yyyyMm),
+          installment_current: installments > 1 ? (null) : 1,
+          installments_total: installments
+        }];
+      }
 
-    const rows = [];
-    for (let i = 0; i < installments; i++) {
-      const isLast = i === installments - 1;
-      const amount = isLast ? +(amountTotal - acumulado).toFixed(2) : base;
-      acumulado += amount;
+      // com split: N terceiros + 1 (você)
+      const qtd = thirdIds.length + 1;
+      const base = +(totalMes / qtd).toFixed(2);
+      let acum = 0;
 
-      const m = somarMes(baseMonthStr, i);
+      const linhas = [];
 
-      rows.push({
+      // terceiros
+      for (let i = 0; i < thirdIds.length; i++) {
+        const isLastThird = (i === thirdIds.length - 1);
+        // não joga resto aqui; o resto vai no "Só eu"
+        const amount = base;
+        acum += amount;
+
+        linhas.push({
+          user_id: sessionUser.id,
+          group_id,
+          split_id,
+          third_party_id: thirdIds[i],
+          is_self: false,
+          type,
+          amount,
+          description,
+          category_id,
+          payment_method_id,
+          bank_id,
+          month: monthToDbDate(yyyyMm),
+          installment_current: 1,
+          installments_total: 1
+        });
+      }
+
+      // você: recebe o resto para fechar centavos certinho
+      const amountSelf = +(totalMes - acum).toFixed(2);
+
+      linhas.push({
         user_id: sessionUser.id,
         group_id,
+        split_id,
+        third_party_id: null,
+        is_self: true,
         type,
-        amount,
+        amount: amountSelf,
         description,
         category_id,
         payment_method_id,
         bank_id,
-        month: monthToDbDate(m),
-        installment_current: installments > 1 ? (i + 1) : 1,
-        installments_total: installments
+        month: monthToDbDate(yyyyMm),
+        installment_current: 1,
+        installments_total: 1
       });
+
+      return linhas;
+    };
+
+    // parcelas por mês (explode)
+    const rows = [];
+    const baseParcela = +(amountTotal / installments).toFixed(2);
+    let acumuladoParcelas = 0;
+
+    for (let i = 0; i < installments; i++) {
+      const isLast = i === installments - 1;
+      const totalMes = isLast ? +(amountTotal - acumuladoParcelas).toFixed(2) : baseParcela;
+      acumuladoParcelas += totalMes;
+
+      const mm = somarMes(baseMonthStr, i);
+
+      const linhasMes = await inserirLinhasDoMes(mm, totalMes);
+
+      // se for parcelado, setar contador de parcela em todas as linhas daquele mês
+      if (installments > 1) {
+        linhasMes.forEach(l => {
+          l.installment_current = i + 1;
+          l.installments_total = installments;
+        });
+      }
+
+      rows.push(...linhasMes);
     }
 
     const { error } = await sb.from("transactions").insert(rows);
@@ -572,6 +700,10 @@ async function editarLancamento(id) {
   document.getElementById("banco").value = t.bank_id || "";
   document.getElementById("mes").value = t.month_str;
 
+  // edição simples: não mexe no split
+  document.getElementById("dividirAuto").checked = false;
+  Array.from(document.getElementById("terceiros").options).forEach(o => o.selected = false);
+
   const btnSubmit = document.querySelector("#formLancamento button[type='submit']");
   if (btnSubmit) btnSubmit.textContent = "Salvar edição";
 }
@@ -580,43 +712,53 @@ async function excluirLancamento(id) {
   const t = transactions.find(x => x.id === id);
   if (!t) return;
 
-  if (!t.group_id) {
-    if (!confirm("Excluir este lançamento?")) return;
+  // Se for parte de split, oferecer excluir só esta linha ou todo split (desse mês) ou tudo do parcelamento
+  const temSplit = !!t.split_id;
+  const temParcelas = !!t.group_id && (t.installments_total || 1) > 1;
 
+  if (!temSplit && !temParcelas) {
+    if (!confirm("Excluir este lançamento?")) return;
     const { error } = await sb.from("transactions").delete().eq("id", id);
     if (error) return alert(error.message);
-
     await carregarTransacoes();
     renderLancamentos();
     atualizarGraficosSeAbaAtiva();
     return;
   }
 
-  const escolha = prompt(
-    "Lançamento parcelado.\n\n" +
-    "1 = Excluir só esta parcela\n" +
-    "2 = Excluir TODAS as parcelas\n\n" +
-    "Cancelar = não excluir"
-  );
+  // menu de exclusão
+  let msg = "Escolha:\n\n";
+  msg += "1 = Excluir só esta linha\n";
+  if (temSplit) msg += "2 = Excluir TODAS as linhas deste racha (mesmo mês)\n";
+  if (temParcelas) msg += "3 = Excluir TODAS as parcelas (todas as linhas)\n";
+  msg += "\nCancelar = não excluir";
+
+  const escolha = prompt(msg);
 
   if (escolha === "1") {
     const { error } = await sb.from("transactions").delete().eq("id", id);
     if (error) return alert(error.message);
-
-    await carregarTransacoes();
-    renderLancamentos();
-    atualizarGraficosSeAbaAtiva();
-    return;
   }
 
-  if (escolha === "2") {
-    const { error } = await sb.from("transactions").delete().eq("group_id", t.group_id);
+  if (escolha === "2" && temSplit) {
+    // mesmo racha e mesmo mês
+    const { error } = await sb.from("transactions")
+      .delete()
+      .eq("split_id", t.split_id)
+      .eq("month", t.month);
     if (error) return alert(error.message);
-
-    await carregarTransacoes();
-    renderLancamentos();
-    atualizarGraficosSeAbaAtiva();
   }
+
+  if (escolha === "3" && temParcelas) {
+    const { error } = await sb.from("transactions")
+      .delete()
+      .eq("group_id", t.group_id);
+    if (error) return alert(error.message);
+  }
+
+  await carregarTransacoes();
+  renderLancamentos();
+  atualizarGraficosSeAbaAtiva();
 }
 
 /* ================== GRÁFICOS ================== */
@@ -627,7 +769,6 @@ function atualizarGraficosSeAbaAtiva() {
 function atualizarGraficos() {
   const lista = transactions;
 
-  // 1) Entradas x Saídas por mês
   const meses = mesesOrdenados(lista);
   const entradasMes = [];
   const saidasMes = [];
@@ -642,11 +783,9 @@ function atualizarGraficos() {
     saidasMes.push(+s.toFixed(2));
   });
 
-  // filtro
   const mesFiltro = getMesFiltro();
   const baseFiltrada = mesFiltro ? lista.filter(t => t.month_str === mesFiltro) : lista;
 
-  // 2) Gastos por categoria
   const gastosCat = {};
   baseFiltrada.forEach(t => {
     if (t.type !== "saida") return;
@@ -656,7 +795,6 @@ function atualizarGraficos() {
   const catLabels = Object.keys(gastosCat);
   const catValues = catLabels.map(k => +gastosCat[k].toFixed(2));
 
-  // 3) Gastos por banco
   const gastosBank = {};
   baseFiltrada.forEach(t => {
     if (t.type !== "saida") return;
@@ -666,7 +804,6 @@ function atualizarGraficos() {
   const bankLabels = Object.keys(gastosBank);
   const bankValues = bankLabels.map(k => +gastosBank[k].toFixed(2));
 
-  // 4) Saldo acumulado
   let acum = 0;
   const saldoAcum = meses.map((m, idx) => {
     const net = entradasMes[idx] - saidasMes[idx];
@@ -688,11 +825,7 @@ function renderChartMensal(labels, entradas, saidas) {
 
   if (chartMensal) { chartMensal.data = data; chartMensal.update(); return; }
 
-  chartMensal = new Chart(el, {
-    type: "bar",
-    data,
-    options: { responsive: true, plugins: { legend: { position: "top" } } }
-  });
+  chartMensal = new Chart(el, { type: "bar", data, options: { responsive: true, plugins: { legend: { position: "top" } } } });
 }
 
 function renderChartCategorias(labels, values) {
@@ -703,11 +836,7 @@ function renderChartCategorias(labels, values) {
 
   if (chartCategorias) { chartCategorias.data = data; chartCategorias.update(); return; }
 
-  chartCategorias = new Chart(el, {
-    type: "doughnut",
-    data,
-    options: { responsive: true, plugins: { legend: { position: "right" } } }
-  });
+  chartCategorias = new Chart(el, { type: "doughnut", data, options: { responsive: true, plugins: { legend: { position: "right" } } } });
 }
 
 function renderChartBancos(labels, values) {
@@ -718,11 +847,7 @@ function renderChartBancos(labels, values) {
 
   if (chartBancos) { chartBancos.data = data; chartBancos.update(); return; }
 
-  chartBancos = new Chart(el, {
-    type: "doughnut",
-    data,
-    options: { responsive: true, plugins: { legend: { position: "right" } } }
-  });
+  chartBancos = new Chart(el, { type: "doughnut", data, options: { responsive: true, plugins: { legend: { position: "right" } } } });
 }
 
 function renderChartSaldo(labels, values) {
@@ -733,11 +858,7 @@ function renderChartSaldo(labels, values) {
 
   if (chartSaldo) { chartSaldo.data = data; chartSaldo.update(); return; }
 
-  chartSaldo = new Chart(el, {
-    type: "line",
-    data,
-    options: { responsive: true, plugins: { legend: { position: "top" } } }
-  });
+  chartSaldo = new Chart(el, { type: "line", data, options: { responsive: true, plugins: { legend: { position: "top" } } } });
 }
 
 /* ===== Expor para onclick ===== */
@@ -752,3 +873,6 @@ window.removerPagamento = removerPagamento;
 
 window.editarBanco = editarBanco;
 window.removerBanco = removerBanco;
+
+window.editarTerceiro = editarTerceiro;
+window.removerTerceiro = removerTerceiro;
