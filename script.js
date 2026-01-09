@@ -2,6 +2,7 @@
 const SUPABASE_URL = "https://fwzdxtpkirkyygzoezjx.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ3emR4dHBraXJreXlnem9lemp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc4OTE3MjcsImV4cCI6MjA4MzQ2NzcyN30.JhZaeArVoReH150Z6seCKu8AM1qw9PeZayLfTtfJqIQ";
 
+// SDK é window.supabase. Cliente único é window.__sb.
 window.__sb = window.__sb || window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const sb = window.__sb;
 
@@ -26,7 +27,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   configurarAbas();
   configurarFiltroMes();
   configurarAuthUI();
-
   bindConfigButtons();
 
   const { data } = await sb.auth.getSession();
@@ -40,7 +40,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   });
 });
 
-/* ================== UI HELPERS ================== */
+/* ================== HELPERS ================== */
 function show(elId, yes) {
   const el = document.getElementById(elId);
   if (!el) return;
@@ -59,26 +59,20 @@ function parseValor(valor) {
   return +n.toFixed(2);
 }
 
-function normalizarMes(yyyyMm) {
+// Grava no Supabase como string "YYYY-MM-01" (evita bug de timezone)
+function monthToDbDate(yyyyMm) {
   if (!yyyyMm || !/^\d{4}-\d{2}$/.test(yyyyMm)) throw "Selecione o mês";
-  return yyyyMm;
+  return `${yyyyMm}-01`;
 }
 
-function monthToDate(yyyyMm) {
-  const [y, m] = yyyyMm.split("-").map(Number);
-  return new Date(y, m - 1, 1);
-}
-
-function dateToMonthStr(d) {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  return `${y}-${m}`;
-}
-
+// Soma meses sem Date (evita timezone)
 function somarMes(yyyyMm, offset) {
-  const d = monthToDate(yyyyMm);
-  d.setMonth(d.getMonth() + offset);
-  return dateToMonthStr(d);
+  const [y0, m0] = yyyyMm.split("-").map(Number);
+  let y = y0;
+  let m = m0 + offset; // 1..12
+  while (m > 12) { m -= 12; y += 1; }
+  while (m < 1)  { m += 12; y -= 1; }
+  return `${y}-${String(m).padStart(2, "0")}`;
 }
 
 function getMesFiltro() {
@@ -91,7 +85,7 @@ function mesesOrdenados(lista) {
   return Array.from(s).sort((a, b) => a.localeCompare(b));
 }
 
-/* ================== AUTH UI ================== */
+/* ================== AUTH ================== */
 function configurarAuthUI() {
   const formAuth = document.getElementById("formAuth");
   const btnLogout = document.getElementById("btnLogout");
@@ -104,9 +98,11 @@ function configurarAuthUI() {
     const pass = document.getElementById("authPass").value;
 
     let res = await sb.auth.signInWithPassword({ email, password: pass });
+
     if (res.error) {
       const sign = await sb.auth.signUp({ email, password: pass });
       if (sign.error) return alert(sign.error.message);
+
       return alert("Conta criada! Se exigir confirmação por e-mail, confirme e tente entrar novamente.");
     }
   });
@@ -129,9 +125,9 @@ async function aplicarEstadoAuth() {
   ativarAba("lancamentos");
 
   await carregarTudo();
-  await garantirBancosPadraoSeVazio(); // Inter, Nubank, MercadoPago, Banco do Brasil
+  await garantirBancosPadraoSeVazio();
+  await carregarTudo();
 
-  await carregarTudo(); // recarrega depois de possível insert
   renderTudo();
 }
 
@@ -180,7 +176,7 @@ function configurarFiltroMes() {
   });
 }
 
-/* ================== LOAD DATA ================== */
+/* ================== LOAD ================== */
 async function carregarTudo() {
   await Promise.all([carregarCategorias(), carregarPagamentos(), carregarBancos(), carregarTransacoes()]);
 }
@@ -210,25 +206,22 @@ async function carregarTransacoes() {
 
   if (error) return alert(error.message);
 
+  // ✅ BUG FIX: month vem "YYYY-MM-DD" (string). Pega mês por slice, sem Date/timezone.
   transactions = (data || []).map(t => ({
     ...t,
-    month_str: dateToMonthStr(new Date(t.month))
+    month_str: (typeof t.month === "string") ? t.month.slice(0, 7) : ""
   }));
 }
 
 /* ================== DEFAULT BANKS ================== */
 async function garantirBancosPadraoSeVazio() {
-  // se já tem banco cadastrado, não mexe
   if (banks.length > 0) return;
 
   const padrao = ["Inter", "Nubank", "MercadoPago", "Banco do Brasil"];
   const rows = padrao.map(name => ({ user_id: sessionUser.id, name }));
 
   const { error } = await sb.from("banks").insert(rows);
-  if (error) {
-    // se der conflito por unique etc, só ignora
-    console.warn("Não consegui inserir bancos padrão:", error.message);
-  }
+  if (error) console.warn("Inserção bancos padrão:", error.message);
 }
 
 /* ================== RENDER ================== */
@@ -242,6 +235,7 @@ function renderTudo() {
 function renderCategorias() {
   const ul = document.getElementById("listaCategorias");
   const select = document.getElementById("categoria");
+
   ul.innerHTML = "";
   select.innerHTML = `<option value="">Categoria</option>`;
 
@@ -259,6 +253,7 @@ function renderCategorias() {
 function renderPagamentos() {
   const ul = document.getElementById("listaPagamentos");
   const select = document.getElementById("pagamento");
+
   ul.innerHTML = "";
   select.innerHTML = `<option value="">Forma de pagamento</option>`;
 
@@ -276,6 +271,7 @@ function renderPagamentos() {
 function renderBancos() {
   const ul = document.getElementById("listaBancos");
   const select = document.getElementById("banco");
+
   ul.innerHTML = "";
   select.innerHTML = `<option value="">Banco</option>`;
 
@@ -323,7 +319,7 @@ function renderLancamentos() {
   document.getElementById("saldo").innerText = `Saldo: ${fmtBRL(entradas - saidas)}`;
 }
 
-/* ================== BIND BOTÕES ================== */
+/* ================== BIND CONFIG ================== */
 function bindConfigButtons() {
   document.getElementById("btnAddCategoria")?.addEventListener("click", addCategoria);
   document.getElementById("btnAddPagamento")?.addEventListener("click", addPagamento);
@@ -462,7 +458,7 @@ async function removerBanco(id) {
   atualizarGraficosSeAbaAtiva();
 }
 
-/* ================== CRUD: LANÇAMENTOS ================== */
+/* ================== LANÇAMENTOS ================== */
 document.getElementById("formLancamento").addEventListener("submit", salvarLancamento);
 
 async function salvarLancamento(e) {
@@ -475,7 +471,7 @@ async function salvarLancamento(e) {
     const category_id = document.getElementById("categoria").value;
     const payment_method_id = document.getElementById("pagamento").value;
     const bank_id = document.getElementById("banco").value;
-    const baseMonthStr = normalizarMes(document.getElementById("mes").value);
+    const baseMonthStr = document.getElementById("mes").value; // "YYYY-MM"
 
     let installments = parseInt(document.getElementById("parcelas").value, 10);
     if (isNaN(installments) || installments < 1) installments = 1;
@@ -485,8 +481,11 @@ async function salvarLancamento(e) {
     if (!category_id) throw "Selecione a categoria";
     if (!payment_method_id) throw "Selecione a forma de pagamento";
     if (!bank_id) throw "Selecione o banco";
+    if (!baseMonthStr) throw "Selecione o mês";
 
-    // editar 1 registro
+    const btnSubmit = document.querySelector("#formLancamento button[type='submit']");
+
+    // ✅ EDITAR
     if (editId) {
       const { error } = await sb.from("transactions")
         .update({
@@ -496,13 +495,15 @@ async function salvarLancamento(e) {
           category_id,
           payment_method_id,
           bank_id,
-          month: monthToDate(baseMonthStr)
+          month: monthToDbDate(baseMonthStr)
         })
         .eq("id", editId);
 
       if (error) return alert(error.message);
 
       editId = null;
+      if (btnSubmit) btnSubmit.textContent = "Salvar";
+
       e.target.reset();
       document.getElementById("parcelas").value = 1;
 
@@ -512,7 +513,7 @@ async function salvarLancamento(e) {
       return;
     }
 
-    // novo: parcelas (explode por mês)
+    // ✅ NOVO (parcelas por mês)
     const group_id = installments > 1 ? crypto.randomUUID() : null;
 
     const base = +(amountTotal / installments).toFixed(2);
@@ -525,6 +526,7 @@ async function salvarLancamento(e) {
       acumulado += amount;
 
       const m = somarMes(baseMonthStr, i);
+
       rows.push({
         user_id: sessionUser.id,
         group_id,
@@ -534,7 +536,7 @@ async function salvarLancamento(e) {
         category_id,
         payment_method_id,
         bank_id,
-        month: monthToDate(m),
+        month: monthToDbDate(m),
         installment_current: installments > 1 ? (i + 1) : 1,
         installments_total: installments
       });
@@ -560,6 +562,7 @@ async function editarLancamento(id) {
   if (!t) return;
 
   editId = id;
+
   document.getElementById("tipo").value = t.type;
   document.getElementById("valor").value = Number(t.amount).toFixed(2).replace(".", ",");
   document.getElementById("parcelas").value = 1;
@@ -568,6 +571,9 @@ async function editarLancamento(id) {
   document.getElementById("pagamento").value = t.payment_method_id || "";
   document.getElementById("banco").value = t.bank_id || "";
   document.getElementById("mes").value = t.month_str;
+
+  const btnSubmit = document.querySelector("#formLancamento button[type='submit']");
+  if (btnSubmit) btnSubmit.textContent = "Salvar edição";
 }
 
 async function excluirLancamento(id) {
@@ -576,6 +582,7 @@ async function excluirLancamento(id) {
 
   if (!t.group_id) {
     if (!confirm("Excluir este lançamento?")) return;
+
     const { error } = await sb.from("transactions").delete().eq("id", id);
     if (error) return alert(error.message);
 
@@ -620,7 +627,7 @@ function atualizarGraficosSeAbaAtiva() {
 function atualizarGraficos() {
   const lista = transactions;
 
-  // (1) Entradas x Saídas por mês
+  // 1) Entradas x Saídas por mês
   const meses = mesesOrdenados(lista);
   const entradasMes = [];
   const saidasMes = [];
@@ -635,32 +642,31 @@ function atualizarGraficos() {
     saidasMes.push(+s.toFixed(2));
   });
 
-  // (2) Gastos por categoria (respeita filtro)
+  // filtro
   const mesFiltro = getMesFiltro();
   const baseFiltrada = mesFiltro ? lista.filter(t => t.month_str === mesFiltro) : lista;
 
+  // 2) Gastos por categoria
   const gastosCat = {};
   baseFiltrada.forEach(t => {
     if (t.type !== "saida") return;
     const nome = categories.find(c => c.id === t.category_id)?.name || "Sem categoria";
     gastosCat[nome] = (gastosCat[nome] || 0) + Number(t.amount);
   });
-
   const catLabels = Object.keys(gastosCat);
   const catValues = catLabels.map(k => +gastosCat[k].toFixed(2));
 
-  // (NOVO) Gastos por banco (respeita filtro)
+  // 3) Gastos por banco
   const gastosBank = {};
   baseFiltrada.forEach(t => {
     if (t.type !== "saida") return;
     const nome = banks.find(b => b.id === t.bank_id)?.name || "Sem banco";
     gastosBank[nome] = (gastosBank[nome] || 0) + Number(t.amount);
   });
-
   const bankLabels = Object.keys(gastosBank);
   const bankValues = bankLabels.map(k => +gastosBank[k].toFixed(2));
 
-  // (3) Saldo acumulado
+  // 4) Saldo acumulado
   let acum = 0;
   const saldoAcum = meses.map((m, idx) => {
     const net = entradasMes[idx] - saidasMes[idx];
