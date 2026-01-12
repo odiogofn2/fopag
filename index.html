@@ -5,15 +5,42 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Controle Financeiro</title>
 
-  <!-- CSS na raiz -->
   <link rel="stylesheet" href="style.css" />
   <link rel="icon" href="data:," />
 </head>
 <body>
 
-  <div class="app">
+  <!-- ====== LOGIN (sem mexer no CSS; usa seu style.css como estiver) ====== -->
+  <div class="app" id="authView">
     <header>
       <h1>Controle Financeiro</h1>
+    </header>
+
+    <section class="aba ativa">
+      <h2>Entrar</h2>
+
+      <div class="box-config">
+        <input id="email" type="email" placeholder="Email" autocomplete="username" />
+        <input id="senha" type="password" placeholder="Senha" autocomplete="current-password" />
+        <button id="btnLogin" type="button">Entrar</button>
+
+        <div id="authMsg" style="margin-top:10px; opacity:.85;"></div>
+
+        <div style="margin-top:14px; opacity:.75;">
+          Se você ainda não tem usuário, crie no Supabase Auth (ou me peça que eu incluo botão de cadastro).
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- ====== APP ====== -->
+  <div class="app" id="appView" style="display:none;">
+    <header>
+      <h1>Controle Financeiro</h1>
+      <div style="opacity:.8; margin-top:6px;">
+        <span id="userBadge"></span>
+        <button id="btnLogout" type="button" style="margin-left:10px; background:#ef4444;">Sair</button>
+      </div>
     </header>
 
     <nav class="tabs">
@@ -36,17 +63,16 @@
 
         <input id="parcelas" type="number" min="1" value="1" placeholder="Parcelas" required />
 
-        <input id="local" placeholder="Descrição / Local" required />
+        <input id="descricao" placeholder="Descrição / Local" required />
 
-        <input id="banco" placeholder="Banco (ex: Nubank, BB, Caixa)" required />
-
+        <select id="banco" required></select>
         <select id="pessoa" required></select>
         <select id="categoria" required></select>
         <select id="pagamento" required></select>
 
         <input type="month" id="mes" required />
 
-        <button type="submit" id="btnSalvarLancamento">Salvar</button>
+        <button type="submit" id="btnSalvar">Salvar</button>
       </form>
 
       <ul id="listaLancamentos"></ul>
@@ -57,7 +83,6 @@
         <strong id="saldo">Saldo: R$ 0,00</strong>
       </div>
 
-      <!-- Relatório mensal por pessoa -->
       <div style="margin-top: 22px;">
         <h2 style="margin-bottom: 10px;">Resumo do mês (por pessoa)</h2>
         <div id="relatorioMensal"></div>
@@ -67,6 +92,13 @@
 
     <!-- ================= CONFIGURACOES ================= -->
     <section id="configuracoes" class="aba">
+
+      <h2>Bancos</h2>
+      <div class="box-config">
+        <input id="novoBanco" placeholder="Novo banco (ex: Nubank)" />
+        <button id="btnAddBanco" type="button">Adicionar</button>
+        <ul id="listaBancos"></ul>
+      </div>
 
       <h2>Categorias</h2>
       <div class="box-config">
@@ -92,10 +124,8 @@
     </section>
   </div>
 
-  <!-- Supabase v2 (necessário) -->
+  <!-- Supabase v2 -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-  <!-- JS na raiz -->
   <script src="script.js"></script>
 </body>
 </html>
