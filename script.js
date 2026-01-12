@@ -17,6 +17,7 @@ const T = {
 /* ================== ESTADO ================== */
 let currentUser = null;
 let editTxId = null;
+let appEventsWired = false;
 
 /* ================== INIT ================== */
 document.addEventListener("DOMContentLoaded", async () => {
@@ -31,13 +32,12 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 });
 
-/* ================== UI HELPERS ================== */
+/* ================== HELPERS ================== */
 function $(id) { return document.getElementById(id); }
 
 function showAuthMsg(msg) {
   const el = $("authMsg");
-  if (!el) return;
-  el.textContent = msg || "";
+  if (el) el.textContent = msg || "";
 }
 
 function setViews(isLogged) {
@@ -59,7 +59,6 @@ function escapeHtml(str) {
 }
 
 function parseValor(valor) {
-  // aceita 5,99 e 5.99 e 1.234,56
   const v = String(valor || "").trim();
   const n = parseFloat(v.replace(/\./g, "").replace(",", "."));
   if (isNaN(n)) throw new Error("Valor inválido.");
@@ -68,7 +67,7 @@ function parseValor(valor) {
 
 function monthInputToDateFirstDay(yyyyMM) {
   if (!/^\d{4}-\d{2}$/.test(String(yyyyMM || ""))) throw new Error("Mês inválido.");
-  return `${yyyyMM}-01`; // date
+  return `${yyyyMM}-01`;
 }
 
 function dateToYYYYMM(dateStr) {
@@ -77,7 +76,6 @@ function dateToYYYYMM(dateStr) {
 }
 
 function addMonthsToYYYYMM01(dateYYYYMM01, addMonths) {
-  // recebe "YYYY-MM-01" -> devolve "YYYY-MM-01" com meses incrementados
   const [y, m] = String(dateYYYYMM01).split("-").map(Number);
   const d = new Date(y, (m - 1) + addMonths, 1);
   const yy = d.getFullYear();
@@ -93,12 +91,18 @@ function uuid() {
 function configurarAbas() {
   const tabs = document.querySelectorAll(".tabs button");
   tabs.forEach((btn) => {
-    btn.addEventListener("click", () => {
+    btn.addEventListener("click", async () => {
       tabs.forEach((b) => b.classList.remove("active"));
       document.querySelectorAll(".aba").forEach((a) => a.classList.remove("ativa"));
 
       btn.classList.add("active");
-      document.getElementById(btn.dataset.aba).classList.add("ativa");
+      const target = document.getElementById(btn.dataset.aba);
+      target.classList.add("ativa");
+
+      // sempre que abrir a aba Resumo, atualiza
+      if (btn.dataset.aba === "resumo" && currentUser) {
+        await renderResumoTab();
+      }
     });
   });
 }
@@ -138,23 +142,22 @@ function wireAuthButtons() {
 }
 
 async function enterApp() {
-  // garante user
   const { data } = await sb.auth.getUser();
   currentUser = data?.user || currentUser;
+
   if (!currentUser) {
     setViews(false);
     return;
   }
 
   $("userBadge").textContent = `Logado: ${currentUser.email || currentUser.id}`;
-
   setViews(true);
 
   wireAppEvents();
   await renderTudo();
 }
 
-/* ================== DATA ACCESS (OWN via RLS) ================== */
+/* ================== DB ACCESS ================== */
 async function listSimple(table) {
   const { data, error } = await sb.from(table).select("id,name").order("name", { ascending: true });
   if (error) throw error;
@@ -164,7 +167,6 @@ async function listSimple(table) {
 async function insertSimple(table, name) {
   const v = String(name || "").trim();
   if (!v) throw new Error("Informe um nome válido.");
-
   const payload = { id: uuid(), user_id: currentUser.id, name: v };
   const { error } = await sb.from(table).insert([payload]);
   if (error) throw error;
@@ -223,7 +225,6 @@ async function listTransactions() {
 }
 
 async function upsertManyTransactions(rows) {
-  // upsert em lote
   const { error } = await sb.from(T.transactions).upsert(rows);
   if (error) throw error;
 }
@@ -248,14 +249,16 @@ async function renderTudo() {
   ]);
 
   await renderLancamentos();
-  await renderRelatorioMensal();
+
+  // se a aba atual for resumo, atualiza também
+  const resumoAbaAtiva = document.getElementById("resumo")?.classList.contains("ativa");
+  if (resumoAbaAtiva) await renderResumoTab();
 }
 
 /* ================== RENDER CONFIG + SELECTS ================== */
 async function renderBancos() {
   const bancos = await listSimple(T.banks);
 
-  // config list
   const ul = $("listaBancos");
   ul.innerHTML = "";
   bancos.forEach(b => {
@@ -275,7 +278,6 @@ async function renderBancos() {
     });
   });
 
-  // select
   const sel = $("banco");
   sel.innerHTML = `<option value="">Banco</option>`;
   bancos.forEach(b => (sel.innerHTML += `<option value="${b.id}">${escapeHtml(b.name)}</option>`));
@@ -362,8 +364,7 @@ async function renderPessoas() {
   people.forEach(p => (sel.innerHTML += `<option value="${p.id}">${escapeHtml(p.name)}</option>`));
 }
 
-/* ================== APP EVENTS ================== */
-let appEventsWired = false;
+/* ================== EVENTS ================== */
 function wireAppEvents() {
   if (appEventsWired) return;
   appEventsWired = true;
@@ -408,6 +409,14 @@ function wireAppEvents() {
     } catch (e) { alert(e.message || String(e)); }
   });
 
+  $("btnAtualizarResumo")?.addEventListener("click", async () => {
+    try {
+      await renderResumoTab();
+    } catch (e) {
+      alert(e.message || String(e));
+    }
+  });
+
   $("formLancamento").addEventListener("submit", async (e) => {
     e.preventDefault();
 
@@ -431,7 +440,7 @@ function wireAppEvents() {
         return;
       }
 
-      // EDITAR: edita apenas a linha (parcela) selecionada
+      // EDITAR: edita só a linha selecionada
       if (editTxId) {
         const payload = {
           id: editTxId,
@@ -445,14 +454,10 @@ function wireAppEvents() {
           payment_method_id,
           is_self,
           third_party_id,
-          // mantém parcelas coerentes na linha editada
           installment_current: 1,
           installments_total: installmentsTotal,
         };
 
-        // Observação: se você editar uma parcela antiga (ex: 3/10), eu mantenho current/total real na render (abaixo).
-        // Aqui estamos simplificando: editar vira “uma linha” com 1/total.
-        // Se quiser editar preservando 3/10, eu ajusto com base no item atual.
         await upsertManyTransactions([payload]);
 
         editTxId = null;
@@ -460,7 +465,6 @@ function wireAppEvents() {
         $("parcelas").value = 1;
 
         await renderLancamentos();
-        await renderRelatorioMensal();
         return;
       }
 
@@ -493,7 +497,6 @@ function wireAppEvents() {
       $("parcelas").value = 1;
 
       await renderLancamentos();
-      await renderRelatorioMensal();
 
     } catch (err) {
       console.error(err);
@@ -502,7 +505,7 @@ function wireAppEvents() {
   });
 }
 
-/* ================== LANCAMENTOS LIST + EDIT/DELETE ================== */
+/* ================== LANCAMENTOS ================== */
 async function renderLancamentos() {
   const lista = await listTransactions();
 
@@ -545,7 +548,6 @@ async function renderLancamentos() {
       const group = btn.getAttribute("data-group") || "";
       const total = parseInt(btn.getAttribute("data-total") || "1", 10) || 1;
 
-      // Se for parcelado e tiver group_id, pergunta se exclui 1 ou todas
       if (group && total > 1) {
         const resp = prompt('Excluir "uma" parcela ou "todas" do grupo? (digite: uma / todas)');
         if (!resp) return;
@@ -567,7 +569,6 @@ async function renderLancamentos() {
       }
 
       await renderLancamentos();
-      await renderRelatorioMensal();
     });
   });
 
@@ -589,92 +590,71 @@ async function renderLancamentos() {
       $("banco").value = item.bank_id || "";
       $("categoria").value = item.category_id || "";
       $("pagamento").value = item.payment_method_id || "";
-
       $("pessoa").value = item.is_self ? "__self__" : (item.third_party_id || "__self__");
     });
   });
 }
 
-/* ================== RELATÓRIO MENSAL ================== */
-async function renderRelatorioMensal() {
-  const container = $("relatorioMensal");
-  const mesRef = ($("mes")?.value || "").trim();
-  if (!mesRef) {
-    container.innerHTML = `<div style="opacity:.75;">Selecione um mês no formulário para ver o resumo.</div>`;
+/* ================== RESUMO TAB ================== */
+async function renderResumoTab() {
+  const container = $("resumoTabela");
+  if (!container) return;
+
+  const tx = await listTransactions();
+  if (!tx.length) {
+    container.innerHTML = `<div style="opacity:.75;">Sem lançamentos cadastrados.</div>`;
     return;
   }
 
-  const mesDate = monthInputToDateFirstDay(mesRef);
-  const lista = await listTransactions();
-  const lanc = lista.filter(t => String(t.month || "") === mesDate);
+  // Pessoas: "Só eu" + nomes dos terceiros encontrados (colunas)
+  const pessoasSet = new Set();
+  pessoasSet.add("Só eu");
+  tx.forEach(t => pessoasSet.add(t.person_name || "Só eu"));
+  const pessoas = Array.from(pessoasSet).sort((a, b) => a.localeCompare(b, "pt-BR"));
 
-  if (lanc.length === 0) {
-    container.innerHTML = `<div style="opacity:.75;">Sem lançamentos para ${escapeHtml(mesRef)}.</div>`;
-    return;
-  }
+  // Meses (linhas): YYYY-MM
+  const mesesSet = new Set();
+  tx.forEach(t => mesesSet.add(dateToYYYYMM(t.month)));
+  const meses = Array.from(mesesSet).sort(); // ordem crescente
 
-  const agg = {};
-  const ensure = (p) => {
-    if (!agg[p]) agg[p] = { entradas: 0, saidas: 0, porPagamento: {}, porBanco: {}, porCategoria: {} };
-    return agg[p];
-  };
-  const addMap = (m, k, v) => { m[k] = (m[k] || 0) + v; };
+  // pivot[mes][pessoa] = total
+  const pivot = {};
+  for (const mes of meses) pivot[mes] = {};
 
-  for (const t of lanc) {
+  for (const t of tx) {
+    const mes = dateToYYYYMM(t.month);
     const pessoa = t.person_name || "Só eu";
-    const o = ensure(pessoa);
 
-    if (t.type === "entrada") o.entradas += t.amount;
-    else o.saidas += t.amount;
+    // total = entradas - saídas
+    const signed = (t.type === "entrada") ? t.amount : -t.amount;
 
-    // agrupando total do mês da pessoa (entrada+saída). Se quiser só SAÍDAS aqui, eu mudo em 1 if.
-    addMap(o.porPagamento, t.payment_name || "Não informado", t.amount);
-    addMap(o.porBanco, t.bank_name || "Não informado", t.amount);
-    addMap(o.porCategoria, t.category_name || "Não informado", t.amount);
+    pivot[mes][pessoa] = (pivot[mes][pessoa] || 0) + signed;
   }
 
-  const pessoas = Object.keys(agg).sort((a, b) => a.localeCompare(b, "pt-BR"));
-  const listaTop = (objMap) =>
-    Object.entries(objMap)
-      .sort((a, b) => b[1] - a[1])
-      .map(([k, v]) => `<li>${escapeHtml(k)}: <strong>${brl(v)}</strong></li>`)
-      .join("") || `<li style="opacity:.75;">(vazio)</li>`;
+  // monta tabela simples
+  const ths = [`<th style="text-align:left; padding:8px; border-bottom:1px solid #e5e7eb;">Mês</th>`]
+    .concat(pessoas.map(p => `<th style="text-align:right; padding:8px; border-bottom:1px solid #e5e7eb;">${escapeHtml(p)}</th>`))
+    .join("");
 
-  const blocos = pessoas.map((p) => {
-    const r = agg[p];
+  const rows = meses.map(mes => {
+    const tds = pessoas.map(p => {
+      const val = pivot[mes][p] || 0;
+      return `<td style="text-align:right; padding:8px; border-bottom:1px solid #f1f5f9;">${brl(val)}</td>`;
+    }).join("");
+
     return `
-      <div style="border:1px solid #e5e7eb; border-radius:10px; padding:12px; margin-bottom:12px;">
-        <div style="display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap;">
-          <div style="font-weight:700;">${escapeHtml(p)}</div>
-          <div style="opacity:.85;">
-            Entradas: <strong>${brl(r.entradas)}</strong> |
-            Saídas: <strong>${brl(r.saidas)}</strong> |
-            Saldo: <strong>${brl(r.entradas - r.saidas)}</strong>
-          </div>
-        </div>
-
-        <div style="margin-top:10px;">
-          <div style="font-weight:600; margin-bottom:6px;">Por forma de pagamento</div>
-          <ul style="margin-left:18px;">${listaTop(r.porPagamento)}</ul>
-        </div>
-
-        <div style="margin-top:10px;">
-          <div style="font-weight:600; margin-bottom:6px;">Por banco</div>
-          <ul style="margin-left:18px;">${listaTop(r.porBanco)}</ul>
-        </div>
-
-        <div style="margin-top:10px;">
-          <div style="font-weight:600; margin-bottom:6px;">Por categoria</div>
-          <ul style="margin-left:18px;">${listaTop(r.porCategoria)}</ul>
-        </div>
-      </div>
-    `;
+      <tr>
+        <td style="text-align:left; padding:8px; border-bottom:1px solid #f1f5f9;"><strong>${escapeHtml(mes)}</strong></td>
+        ${tds}
+      </tr>`;
   }).join("");
 
   container.innerHTML = `
-    <div style="margin-bottom:10px; opacity:.8;">
-      Mês de referência: <strong>${escapeHtml(mesRef)}</strong>
+    <div style="overflow:auto;">
+      <table style="width:100%; border-collapse:collapse;">
+        <thead><tr>${ths}</tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
     </div>
-    ${blocos}
   `;
 }
