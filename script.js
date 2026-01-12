@@ -5,52 +5,45 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 window.__sb = window.__sb || window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const sb = window.__sb;
 
-/* ================== TABELAS (SUPABASE) ==================
-  Esperado:
-  - cfg_categorias (nome text unique)
-  - cfg_pagamentos (nome text unique)
-  - cfg_pessoas   (nome text unique)
-  - lancamentos   (id bigint/uuid, tipo, valor, parcelas, local, banco, pessoa, categoria, pagamento, mes)
-========================================================== */
-const TABLES = {
-  categorias: "cfg_categorias",
-  pagamentos: "cfg_pagamentos",
-  pessoas: "cfg_pessoas",
-  lancamentos: "lancamentos",
+/* ================== TABELAS ================== */
+const T = {
+  banks: "banks",
+  categories: "categories",
+  payment_methods: "payment_methods",
+  third_parties: "third_parties",
+  transactions: "transactions",
 };
 
-/* ================== FALLBACK (LOCALSTORAGE) ================== */
-const STORAGE = {
-  categorias: "categorias",
-  pagamentos: "pagamentos",
-  pessoas: "pessoas",
-  lancamentos: "lancamentos",
-};
-
-let editId = null;
-let useSupabase = true;
+/* ================== ESTADO ================== */
+let currentUser = null;
+let editTxId = null;
 
 /* ================== INIT ================== */
 document.addEventListener("DOMContentLoaded", async () => {
   configurarAbas();
+  wireAuthButtons();
 
-  // garante defaults no fallback
-  iniciarListasLocal();
-
-  // tenta Supabase; se falhar, cai pro localStorage
-  await testarSupabase();
-
-  // eventos
-  wireConfigButtons();
-  wireFormLancamento();
-
-  // render inicial
-  await renderTudo();
+  // Se já tiver sessão, entra direto
+  const { data } = await sb.auth.getSession();
+  if (data?.session?.user) {
+    currentUser = data.session.user;
+    await enterApp();
+  }
 });
 
-/* ================== UTIL ================== */
-const getLocal = (k) => JSON.parse(localStorage.getItem(k)) || [];
-const setLocal = (k, v) => localStorage.setItem(k, JSON.stringify(v));
+/* ================== UI HELPERS ================== */
+function $(id) { return document.getElementById(id); }
+
+function showAuthMsg(msg) {
+  const el = $("authMsg");
+  if (!el) return;
+  el.textContent = msg || "";
+}
+
+function setViews(isLogged) {
+  $("authView").style.display = isLogged ? "none" : "block";
+  $("appView").style.display = isLogged ? "block" : "none";
+}
 
 function brl(n) {
   return (Number(n) || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -67,22 +60,33 @@ function escapeHtml(str) {
 
 function parseValor(valor) {
   // aceita 5,99 e 5.99 e 1.234,56
-  const v = String(valor).trim();
-  // se vier "5.99" vira "5.99" -> remove pontos de milhar (não tem) e troca vírgula por ponto (não tem) => ok
-  // se vier "1.234,56" -> remove todos "." => "1234,56" => troca "," por "." => 1234.56
+  const v = String(valor || "").trim();
   const n = parseFloat(v.replace(/\./g, "").replace(",", "."));
-  if (isNaN(n)) throw "Valor inválido";
+  if (isNaN(n)) throw new Error("Valor inválido.");
   return n;
 }
 
-function gerarId() {
-  // id numérico simples (compatível com bigint no supabase se você usar bigint)
-  return Date.now();
+function monthInputToDateFirstDay(yyyyMM) {
+  if (!/^\d{4}-\d{2}$/.test(String(yyyyMM || ""))) throw new Error("Mês inválido.");
+  return `${yyyyMM}-01`; // date
 }
 
-function mesAtualYYYYMM() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+function dateToYYYYMM(dateStr) {
+  if (!dateStr) return "";
+  return String(dateStr).slice(0, 7);
+}
+
+function addMonthsToYYYYMM01(dateYYYYMM01, addMonths) {
+  // recebe "YYYY-MM-01" -> devolve "YYYY-MM-01" com meses incrementados
+  const [y, m] = String(dateYYYYMM01).split("-").map(Number);
+  const d = new Date(y, (m - 1) + addMonths, 1);
+  const yy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  return `${yy}-${mm}-01`;
+}
+
+function uuid() {
+  return crypto.randomUUID();
 }
 
 /* ================== ABAS ================== */
@@ -92,370 +96,544 @@ function configurarAbas() {
     btn.addEventListener("click", () => {
       tabs.forEach((b) => b.classList.remove("active"));
       document.querySelectorAll(".aba").forEach((a) => a.classList.remove("ativa"));
+
       btn.classList.add("active");
       document.getElementById(btn.dataset.aba).classList.add("ativa");
     });
   });
 }
 
-/* ================== DEFAULTS (LOCAL) ================== */
-function iniciarListasLocal() {
-  if (!localStorage.getItem(STORAGE.categorias)) {
-    setLocal(STORAGE.categorias, ["Alimentação", "Moradia", "Transporte", "Lazer"]);
-  }
-  if (!localStorage.getItem(STORAGE.pagamentos)) {
-    setLocal(STORAGE.pagamentos, ["Cartão de Crédito", "Cartão de Débito", "Pix", "Dinheiro"]);
-  }
-  if (!localStorage.getItem(STORAGE.pessoas)) {
-    setLocal(STORAGE.pessoas, ["Só eu"]);
-  }
-  if (!localStorage.getItem(STORAGE.lancamentos)) {
-    setLocal(STORAGE.lancamentos, []);
-  }
-}
+/* ================== AUTH ================== */
+function wireAuthButtons() {
+  $("btnLogin")?.addEventListener("click", async () => {
+    try {
+      showAuthMsg("Autenticando...");
+      const email = ($("email").value || "").trim();
+      const password = $("senha").value || "";
 
-/* ================== SUPABASE CHECK ================== */
-async function testarSupabase() {
-  try {
-    // tenta ler uma tabela de config
-    const { error } = await sb.from(TABLES.categorias).select("nome").limit(1);
-    if (error) throw error;
-    useSupabase = true;
-  } catch (e) {
-    console.warn("Supabase indisponível/bloqueado/tabelas não existem. Usando localStorage.", e);
-    useSupabase = false;
-  }
-}
+      if (!email || !password) {
+        showAuthMsg("Informe email e senha.");
+        return;
+      }
 
-/* ================== SAFE WRAPPER ================== */
-async function safe(fn, fallbackValue) {
-  try {
-    return await fn();
-  } catch (e) {
-    console.warn("Falha. Caindo para fallback se possível:", e);
-    if (useSupabase) {
-      useSupabase = false;
-      console.warn("Supabase desativado nesta sessão. Continuando com localStorage.");
+      const { data, error } = await sb.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+
+      currentUser = data.user;
+      showAuthMsg("");
+      await enterApp();
+    } catch (e) {
+      console.error(e);
+      showAuthMsg(e?.message || "Falha no login.");
     }
-    return fallbackValue;
-  }
+  });
+
+  $("btnLogout")?.addEventListener("click", async () => {
+    await sb.auth.signOut();
+    currentUser = null;
+    editTxId = null;
+    setViews(false);
+    showAuthMsg("Você saiu.");
+  });
 }
 
-/* ================== DATA ACCESS: CONFIG ================== */
-async function listConfig(key) {
-  if (!useSupabase) {
-    return getLocal(STORAGE[key]);
-  }
-  const table = TABLES[key];
-  const { data, error } = await sb.from(table).select("nome").order("nome", { ascending: true });
-  if (error) throw error;
-  return (data || []).map((x) => x.nome);
-}
-
-async function addConfig(key, nome) {
-  const v = String(nome || "").trim();
-  if (!v) throw "Informe um nome válido";
-
-  if (!useSupabase) {
-    const lista = getLocal(STORAGE[key]);
-    if (lista.includes(v)) throw "Já existe";
-    lista.push(v);
-    setLocal(STORAGE[key], lista);
+async function enterApp() {
+  // garante user
+  const { data } = await sb.auth.getUser();
+  currentUser = data?.user || currentUser;
+  if (!currentUser) {
+    setViews(false);
     return;
   }
 
-  const table = TABLES[key];
-  const { error } = await sb.from(table).insert([{ nome: v }]);
+  $("userBadge").textContent = `Logado: ${currentUser.email || currentUser.id}`;
+
+  setViews(true);
+
+  wireAppEvents();
+  await renderTudo();
+}
+
+/* ================== DATA ACCESS (OWN via RLS) ================== */
+async function listSimple(table) {
+  const { data, error } = await sb.from(table).select("id,name").order("name", { ascending: true });
+  if (error) throw error;
+  return data || [];
+}
+
+async function insertSimple(table, name) {
+  const v = String(name || "").trim();
+  if (!v) throw new Error("Informe um nome válido.");
+
+  const payload = { id: uuid(), user_id: currentUser.id, name: v };
+  const { error } = await sb.from(table).insert([payload]);
   if (error) throw error;
 }
 
-async function delConfig(key, nome) {
-  const v = String(nome || "").trim();
-  if (!v) return;
-
-  if (!useSupabase) {
-    const lista = getLocal(STORAGE[key]).filter((x) => x !== v);
-    setLocal(STORAGE[key], lista);
-    return;
-  }
-
-  const table = TABLES[key];
-  const { error } = await sb.from(table).delete().eq("nome", v);
+async function deleteSimple(table, id) {
+  const { error } = await sb.from(table).delete().eq("id", id);
   if (error) throw error;
 }
 
-/* ================== DATA ACCESS: LANÇAMENTOS ================== */
-async function listLancamentos() {
-  if (!useSupabase) return getLocal(STORAGE.lancamentos);
-
+async function listTransactions() {
   const { data, error } = await sb
-    .from(TABLES.lancamentos)
-    .select("*")
-    .order("id", { ascending: false });
+    .from(T.transactions)
+    .select(`
+      id,
+      group_id,
+      type,
+      amount,
+      description,
+      month,
+      installment_current,
+      installments_total,
+      bank_id,
+      category_id,
+      payment_method_id,
+      third_party_id,
+      is_self,
+      banks:bank_id ( id, name ),
+      categories:category_id ( id, name ),
+      payment_methods:payment_method_id ( id, name ),
+      third_parties:third_party_id ( id, name )
+    `)
+    .order("created_at", { ascending: false });
 
   if (error) throw error;
 
-  return (data || []).map((l) => ({
-    id: l.id,
-    tipo: l.tipo,
-    valor: Number(l.valor) || 0,
-    parcelas: Number(l.parcelas) || 1,
-    local: l.local || "",
-    banco: l.banco || "",
-    pessoa: l.pessoa || "Só eu",
-    categoria: l.categoria || "",
-    pagamento: l.pagamento || "",
-    mes: l.mes || "",
+  return (data || []).map(t => ({
+    id: t.id,
+    group_id: t.group_id,
+    type: t.type,
+    amount: Number(t.amount) || 0,
+    description: t.description || "",
+    month: t.month, // date
+    installment_current: Number(t.installment_current) || 1,
+    installments_total: Number(t.installments_total) || 1,
+    bank_id: t.bank_id,
+    category_id: t.category_id,
+    payment_method_id: t.payment_method_id,
+    third_party_id: t.third_party_id,
+    is_self: !!t.is_self,
+    bank_name: t.banks?.name || "Não informado",
+    category_name: t.categories?.name || "Não informado",
+    payment_name: t.payment_methods?.name || "Não informado",
+    person_name: t.is_self ? "Só eu" : (t.third_parties?.name || "Terceiro"),
   }));
 }
 
-async function upsertLancamento(l) {
-  if (!useSupabase) {
-    let lista = getLocal(STORAGE.lancamentos);
-    const idx = lista.findIndex((x) => x.id === l.id);
-    if (idx >= 0) lista[idx] = l;
-    else lista.push(l);
-    setLocal(STORAGE.lancamentos, lista);
-    return;
-  }
-
-  const { error } = await sb.from(TABLES.lancamentos).upsert(l, { onConflict: "id" });
+async function upsertManyTransactions(rows) {
+  // upsert em lote
+  const { error } = await sb.from(T.transactions).upsert(rows);
   if (error) throw error;
 }
 
-async function deleteLancamento(id) {
-  if (!useSupabase) {
-    const lista = getLocal(STORAGE.lancamentos).filter((l) => l.id !== id);
-    setLocal(STORAGE.lancamentos, lista);
-    return;
-  }
-  const { error } = await sb.from(TABLES.lancamentos).delete().eq("id", id);
+async function deleteTransaction(id) {
+  const { error } = await sb.from(T.transactions).delete().eq("id", id);
+  if (error) throw error;
+}
+
+async function deleteTransactionsByGroup(group_id) {
+  const { error } = await sb.from(T.transactions).delete().eq("group_id", group_id);
   if (error) throw error;
 }
 
 /* ================== RENDER TUDO ================== */
 async function renderTudo() {
-  await renderCategorias();
-  await renderPagamentos();
-  await renderPessoas();
+  await Promise.all([
+    renderBancos(),
+    renderCategorias(),
+    renderPagamentos(),
+    renderPessoas(),
+  ]);
+
   await renderLancamentos();
   await renderRelatorioMensal();
 }
 
-/* ================== RENDER: CATEGORIAS ================== */
+/* ================== RENDER CONFIG + SELECTS ================== */
+async function renderBancos() {
+  const bancos = await listSimple(T.banks);
+
+  // config list
+  const ul = $("listaBancos");
+  ul.innerHTML = "";
+  bancos.forEach(b => {
+    ul.innerHTML += `
+      <li>
+        ${escapeHtml(b.name)}
+        <button type="button" data-delbank="${b.id}">x</button>
+      </li>`;
+  });
+
+  ul.querySelectorAll("button[data-delbank]").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      const id = btn.getAttribute("data-delbank");
+      if (!confirm("Excluir banco?")) return;
+      await deleteSimple(T.banks, id);
+      await renderTudo();
+    });
+  });
+
+  // select
+  const sel = $("banco");
+  sel.innerHTML = `<option value="">Banco</option>`;
+  bancos.forEach(b => (sel.innerHTML += `<option value="${b.id}">${escapeHtml(b.name)}</option>`));
+}
+
 async function renderCategorias() {
-  const categorias = await safe(async () => await listConfig("categorias"), getLocal(STORAGE.categorias));
+  const cats = await listSimple(T.categories);
 
-  const ul = document.getElementById("listaCategorias");
-  const select = document.getElementById("categoria");
-
+  const ul = $("listaCategorias");
   ul.innerHTML = "";
-  select.innerHTML = '<option value="">Categoria</option>';
-
-  categorias.forEach((c) => {
+  cats.forEach(c => {
     ul.innerHTML += `
       <li>
-        ${escapeHtml(c)}
-        <button type="button" data-del="${escapeHtml(c)}">x</button>
+        ${escapeHtml(c.name)}
+        <button type="button" data-delcat="${c.id}">x</button>
       </li>`;
-    select.innerHTML += `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`;
   });
 
-  ul.querySelectorAll("button[data-del]").forEach((btn) => {
+  ul.querySelectorAll("button[data-delcat]").forEach(btn => {
     btn.addEventListener("click", async () => {
-      const nome = btn.getAttribute("data-del");
+      const id = btn.getAttribute("data-delcat");
       if (!confirm("Excluir categoria?")) return;
-      await safe(async () => await delConfig("categorias", nome), null);
+      await deleteSimple(T.categories, id);
       await renderTudo();
     });
   });
+
+  const sel = $("categoria");
+  sel.innerHTML = `<option value="">Categoria</option>`;
+  cats.forEach(c => (sel.innerHTML += `<option value="${c.id}">${escapeHtml(c.name)}</option>`));
 }
 
-/* ================== RENDER: PAGAMENTOS ================== */
 async function renderPagamentos() {
-  const pagamentos = await safe(async () => await listConfig("pagamentos"), getLocal(STORAGE.pagamentos));
+  const pays = await listSimple(T.payment_methods);
 
-  const ul = document.getElementById("listaPagamentos");
-  const select = document.getElementById("pagamento");
-
+  const ul = $("listaPagamentos");
   ul.innerHTML = "";
-  select.innerHTML = '<option value="">Forma de pagamento</option>';
-
-  pagamentos.forEach((p) => {
+  pays.forEach(p => {
     ul.innerHTML += `
       <li>
-        ${escapeHtml(p)}
-        <button type="button" data-del="${escapeHtml(p)}">x</button>
+        ${escapeHtml(p.name)}
+        <button type="button" data-delpay="${p.id}">x</button>
       </li>`;
-    select.innerHTML += `<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`;
   });
 
-  ul.querySelectorAll("button[data-del]").forEach((btn) => {
+  ul.querySelectorAll("button[data-delpay]").forEach(btn => {
     btn.addEventListener("click", async () => {
-      const nome = btn.getAttribute("data-del");
+      const id = btn.getAttribute("data-delpay");
       if (!confirm("Excluir forma de pagamento?")) return;
-      await safe(async () => await delConfig("pagamentos", nome), null);
+      await deleteSimple(T.payment_methods, id);
       await renderTudo();
     });
   });
+
+  const sel = $("pagamento");
+  sel.innerHTML = `<option value="">Forma de pagamento</option>`;
+  pays.forEach(p => (sel.innerHTML += `<option value="${p.id}">${escapeHtml(p.name)}</option>`));
 }
 
-/* ================== RENDER: PESSOAS ================== */
 async function renderPessoas() {
-  let pessoas = await safe(async () => await listConfig("pessoas"), getLocal(STORAGE.pessoas));
-  if (!pessoas.includes("Só eu")) pessoas = ["Só eu", ...pessoas];
+  const people = await listSimple(T.third_parties);
 
-  const ul = document.getElementById("listaPessoas");
-  const select = document.getElementById("pessoa");
-
-  ul.innerHTML = "";
-  select.innerHTML = "";
-
-  pessoas.forEach((p) => {
-    const podeRemover = p !== "Só eu";
-
+  const ul = $("listaPessoas");
+  ul.innerHTML = `<li>Só eu <span style="opacity:.6;">fixo</span></li>`;
+  people.forEach(p => {
     ul.innerHTML += `
       <li>
-        ${escapeHtml(p)}
-        ${
-          podeRemover
-            ? `<button type="button" data-del="${escapeHtml(p)}">x</button>`
-            : `<span style="opacity:.6;">fixo</span>`
-        }
+        ${escapeHtml(p.name)}
+        <button type="button" data-delperson="${p.id}">x</button>
       </li>`;
-
-    select.innerHTML += `<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`;
   });
 
-  if (!select.value) select.value = "Só eu";
-
-  ul.querySelectorAll("button[data-del]").forEach((btn) => {
+  ul.querySelectorAll("button[data-delperson]").forEach(btn => {
     btn.addEventListener("click", async () => {
-      const nome = btn.getAttribute("data-del");
-      if (nome === "Só eu") return;
+      const id = btn.getAttribute("data-delperson");
       if (!confirm("Excluir pessoa?")) return;
-      await safe(async () => await delConfig("pessoas", nome), null);
+      await deleteSimple(T.third_parties, id);
       await renderTudo();
     });
   });
+
+  const sel = $("pessoa");
+  sel.innerHTML = `<option value="__self__">Só eu</option>`;
+  people.forEach(p => (sel.innerHTML += `<option value="${p.id}">${escapeHtml(p.name)}</option>`));
 }
 
-/* ================== RENDER: LANÇAMENTOS ================== */
+/* ================== APP EVENTS ================== */
+let appEventsWired = false;
+function wireAppEvents() {
+  if (appEventsWired) return;
+  appEventsWired = true;
+
+  $("btnAddBanco").addEventListener("click", async () => {
+    try {
+      const v = ($("novoBanco").value || "").trim();
+      if (!v) return alert("Informe o banco.");
+      await insertSimple(T.banks, v);
+      $("novoBanco").value = "";
+      await renderTudo();
+    } catch (e) { alert(e.message || String(e)); }
+  });
+
+  $("btnAddCategoria").addEventListener("click", async () => {
+    try {
+      const v = ($("novaCategoria").value || "").trim();
+      if (!v) return alert("Informe a categoria.");
+      await insertSimple(T.categories, v);
+      $("novaCategoria").value = "";
+      await renderTudo();
+    } catch (e) { alert(e.message || String(e)); }
+  });
+
+  $("btnAddPagamento").addEventListener("click", async () => {
+    try {
+      const v = ($("novoPagamento").value || "").trim();
+      if (!v) return alert("Informe a forma de pagamento.");
+      await insertSimple(T.payment_methods, v);
+      $("novoPagamento").value = "";
+      await renderTudo();
+    } catch (e) { alert(e.message || String(e)); }
+  });
+
+  $("btnAddPessoa").addEventListener("click", async () => {
+    try {
+      const v = ($("novaPessoa").value || "").trim();
+      if (!v) return alert("Informe a pessoa.");
+      await insertSimple(T.third_parties, v);
+      $("novaPessoa").value = "";
+      await renderTudo();
+    } catch (e) { alert(e.message || String(e)); }
+  });
+
+  $("formLancamento").addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    try {
+      const type = $("tipo").value;
+      const amount = parseValor($("valor").value);
+      const installmentsTotal = Math.max(1, parseInt($("parcelas").value || "1", 10) || 1);
+      const description = ($("descricao").value || "").trim();
+      const monthFirstDay = monthInputToDateFirstDay($("mes").value);
+
+      const bank_id = $("banco").value || null;
+      const category_id = $("categoria").value || null;
+      const payment_method_id = $("pagamento").value || null;
+
+      const pessoaVal = $("pessoa").value;
+      const is_self = pessoaVal === "__self__";
+      const third_party_id = is_self ? null : pessoaVal;
+
+      if (!type || !description || !monthFirstDay || !bank_id || !category_id || !payment_method_id) {
+        alert("Preencha todos os campos.");
+        return;
+      }
+
+      // EDITAR: edita apenas a linha (parcela) selecionada
+      if (editTxId) {
+        const payload = {
+          id: editTxId,
+          user_id: currentUser.id,
+          type,
+          amount,
+          description,
+          month: monthFirstDay,
+          bank_id,
+          category_id,
+          payment_method_id,
+          is_self,
+          third_party_id,
+          // mantém parcelas coerentes na linha editada
+          installment_current: 1,
+          installments_total: installmentsTotal,
+        };
+
+        // Observação: se você editar uma parcela antiga (ex: 3/10), eu mantenho current/total real na render (abaixo).
+        // Aqui estamos simplificando: editar vira “uma linha” com 1/total.
+        // Se quiser editar preservando 3/10, eu ajusto com base no item atual.
+        await upsertManyTransactions([payload]);
+
+        editTxId = null;
+        $("formLancamento").reset();
+        $("parcelas").value = 1;
+
+        await renderLancamentos();
+        await renderRelatorioMensal();
+        return;
+      }
+
+      // NOVO: cria parcelas reais usando group_id
+      const group_id = installmentsTotal > 1 ? uuid() : null;
+
+      const rows = [];
+      for (let i = 1; i <= installmentsTotal; i++) {
+        rows.push({
+          id: uuid(),
+          user_id: currentUser.id,
+          group_id,
+          type,
+          amount,
+          description,
+          month: addMonthsToYYYYMM01(monthFirstDay, i - 1),
+          installment_current: i,
+          installments_total: installmentsTotal,
+          bank_id,
+          category_id,
+          payment_method_id,
+          is_self,
+          third_party_id,
+        });
+      }
+
+      await upsertManyTransactions(rows);
+
+      $("formLancamento").reset();
+      $("parcelas").value = 1;
+
+      await renderLancamentos();
+      await renderRelatorioMensal();
+
+    } catch (err) {
+      console.error(err);
+      alert(err.message || String(err));
+    }
+  });
+}
+
+/* ================== LANCAMENTOS LIST + EDIT/DELETE ================== */
 async function renderLancamentos() {
-  const lista = await safe(async () => await listLancamentos(), getLocal(STORAGE.lancamentos));
-  const ul = document.getElementById("listaLancamentos");
+  const lista = await listTransactions();
+
+  const ul = $("listaLancamentos");
   ul.innerHTML = "";
 
   let entradas = 0;
   let saidas = 0;
 
-  lista.forEach((l) => {
-    const tipo = String(l.tipo || "").toUpperCase();
-    const parcelasTxt = (Number(l.parcelas) || 1) > 1 ? ` | ${l.parcelas}x` : "";
+  lista.forEach(t => {
+    const parcelasTxt = (t.installments_total || 1) > 1
+      ? ` | ${t.installment_current}/${t.installments_total}`
+      : "";
 
     ul.innerHTML += `
       <li>
-        ${escapeHtml(tipo)} | ${brl(l.valor)}
-        | ${escapeHtml(l.pessoa || "Só eu")}
-        | ${escapeHtml(l.pagamento || "")}
-        | ${escapeHtml(l.banco || "")}
-        | ${escapeHtml(l.categoria || "")}
+        ${escapeHtml(String(t.type || "").toUpperCase())} | ${brl(t.amount)}
+        | ${escapeHtml(t.person_name)}
+        | ${escapeHtml(t.payment_name)}
+        | ${escapeHtml(t.bank_name)}
+        | ${escapeHtml(t.category_name)}
         ${parcelasTxt}
-        <button type="button" data-edit="${l.id}">✏️</button>
-        <button type="button" data-del="${l.id}">🗑</button>
+        <button type="button" data-edit="${t.id}">✏️</button>
+        <button type="button" data-del="${t.id}" data-group="${t.group_id || ""}" data-total="${t.installments_total || 1}">🗑</button>
       </li>
     `;
 
-    if (l.tipo === "entrada") entradas += Number(l.valor) || 0;
-    else saidas += Number(l.valor) || 0;
+    if (t.type === "entrada") entradas += t.amount;
+    else saidas += t.amount;
   });
 
-  document.getElementById("totalEntradas").innerText = `Entradas: ${brl(entradas)}`;
-  document.getElementById("totalSaidas").innerText = `Saídas: ${brl(saidas)}`;
-  document.getElementById("saldo").innerText = `Saldo: ${brl(entradas - saidas)}`;
+  $("totalEntradas").innerText = `Entradas: ${brl(entradas)}`;
+  $("totalSaidas").innerText = `Saídas: ${brl(saidas)}`;
+  $("saldo").innerText = `Saldo: ${brl(entradas - saidas)}`;
 
-  // editar
-  ul.querySelectorAll("button[data-edit]").forEach((btn) => {
+  // delete
+  ul.querySelectorAll("button[data-del]").forEach(btn => {
     btn.addEventListener("click", async () => {
-      const id = Number(btn.getAttribute("data-edit"));
-      const item = lista.find((x) => Number(x.id) === id);
-      if (!item) return;
+      const id = btn.getAttribute("data-del");
+      const group = btn.getAttribute("data-group") || "";
+      const total = parseInt(btn.getAttribute("data-total") || "1", 10) || 1;
 
-      editId = id;
+      // Se for parcelado e tiver group_id, pergunta se exclui 1 ou todas
+      if (group && total > 1) {
+        const resp = prompt('Excluir "uma" parcela ou "todas" do grupo? (digite: uma / todas)');
+        if (!resp) return;
+        const r = resp.trim().toLowerCase();
 
-      document.getElementById("tipo").value = item.tipo || "";
-      document.getElementById("valor").value = String(item.valor ?? "").replace(".", ",");
-      document.getElementById("parcelas").value = item.parcelas || 1;
-      document.getElementById("local").value = item.local || "";
-      document.getElementById("banco").value = item.banco || "";
-      document.getElementById("pessoa").value = item.pessoa || "Só eu";
-      document.getElementById("categoria").value = item.categoria || "";
-      document.getElementById("pagamento").value = item.pagamento || "";
-      document.getElementById("mes").value = item.mes || "";
+        if (r === "todas") {
+          if (!confirm("Confirma excluir TODAS as parcelas do grupo?")) return;
+          await deleteTransactionsByGroup(group);
+        } else if (r === "uma") {
+          if (!confirm("Confirma excluir SOMENTE esta parcela?")) return;
+          await deleteTransaction(id);
+        } else {
+          alert('Resposta inválida. Digite "uma" ou "todas".');
+          return;
+        }
+      } else {
+        if (!confirm("Excluir este lançamento?")) return;
+        await deleteTransaction(id);
+      }
+
+      await renderLancamentos();
+      await renderRelatorioMensal();
     });
   });
 
-  // excluir
-  ul.querySelectorAll("button[data-del]").forEach((btn) => {
+  // edit
+  ul.querySelectorAll("button[data-edit]").forEach(btn => {
     btn.addEventListener("click", async () => {
-      const id = Number(btn.getAttribute("data-del"));
-      if (!confirm("Excluir este lançamento?")) return;
-      await safe(async () => await deleteLancamento(id), null);
-      await renderTudo();
+      const id = btn.getAttribute("data-edit");
+      const item = lista.find(x => x.id === id);
+      if (!item) return;
+
+      editTxId = id;
+
+      $("tipo").value = item.type || "";
+      $("valor").value = String(item.amount ?? "").replace(".", ",");
+      $("parcelas").value = item.installments_total || 1;
+      $("descricao").value = item.description || "";
+      $("mes").value = dateToYYYYMM(item.month);
+
+      $("banco").value = item.bank_id || "";
+      $("categoria").value = item.category_id || "";
+      $("pagamento").value = item.payment_method_id || "";
+
+      $("pessoa").value = item.is_self ? "__self__" : (item.third_party_id || "__self__");
     });
   });
 }
 
-/* ================== RELATÓRIO MENSAL POR PESSOA ================== */
+/* ================== RELATÓRIO MENSAL ================== */
 async function renderRelatorioMensal() {
-  const container = document.getElementById("relatorioMensal");
-  if (!container) return;
+  const container = $("relatorioMensal");
+  const mesRef = ($("mes")?.value || "").trim();
+  if (!mesRef) {
+    container.innerHTML = `<div style="opacity:.75;">Selecione um mês no formulário para ver o resumo.</div>`;
+    return;
+  }
 
-  const lista = await safe(async () => await listLancamentos(), getLocal(STORAGE.lancamentos));
-
-  // mês de referência = mês selecionado no formulário; se vazio, mês atual
-  const mesRef = (document.getElementById("mes")?.value || "").trim() || mesAtualYYYYMM();
-  const lanc = lista.filter((l) => String(l.mes || "") === mesRef);
+  const mesDate = monthInputToDateFirstDay(mesRef);
+  const lista = await listTransactions();
+  const lanc = lista.filter(t => String(t.month || "") === mesDate);
 
   if (lanc.length === 0) {
     container.innerHTML = `<div style="opacity:.75;">Sem lançamentos para ${escapeHtml(mesRef)}.</div>`;
     return;
   }
 
-  // pessoa -> { entradas, saidas, porPagamento, porBanco, porCategoria }
   const agg = {};
-
   const ensure = (p) => {
     if (!agg[p]) agg[p] = { entradas: 0, saidas: 0, porPagamento: {}, porBanco: {}, porCategoria: {} };
     return agg[p];
   };
+  const addMap = (m, k, v) => { m[k] = (m[k] || 0) + v; };
 
-  const addMap = (map, key, val) => {
-    if (!map[key]) map[key] = 0;
-    map[key] += val;
-  };
-
-  for (const l of lanc) {
-    const pessoa = l.pessoa || "Só eu";
-    const pagamento = l.pagamento || "Não informado";
-    const banco = l.banco || "Não informado";
-    const categoria = l.categoria || "Não informado";
-    const valor = Number(l.valor) || 0;
-
+  for (const t of lanc) {
+    const pessoa = t.person_name || "Só eu";
     const o = ensure(pessoa);
 
-    if (l.tipo === "entrada") o.entradas += valor;
-    else o.saidas += valor;
+    if (t.type === "entrada") o.entradas += t.amount;
+    else o.saidas += t.amount;
 
-    // Agrupamentos: total do mês daquela pessoa (entrada+saída).
-    // Se você quiser agrupar SOMENTE SAÍDAS aqui, eu mudo em 2 linhas.
-    addMap(o.porPagamento, pagamento, valor);
-    addMap(o.porBanco, banco, valor);
-    addMap(o.porCategoria, categoria, valor);
+    // agrupando total do mês da pessoa (entrada+saída). Se quiser só SAÍDAS aqui, eu mudo em 1 if.
+    addMap(o.porPagamento, t.payment_name || "Não informado", t.amount);
+    addMap(o.porBanco, t.bank_name || "Não informado", t.amount);
+    addMap(o.porCategoria, t.category_name || "Não informado", t.amount);
   }
 
   const pessoas = Object.keys(agg).sort((a, b) => a.localeCompare(b, "pt-BR"));
-
   const listaTop = (objMap) =>
     Object.entries(objMap)
       .sort((a, b) => b[1] - a[1])
@@ -499,89 +677,4 @@ async function renderRelatorioMensal() {
     </div>
     ${blocos}
   `;
-}
-
-/* ================== EVENTS: CONFIG ================== */
-function wireConfigButtons() {
-  document.getElementById("btnAddCategoria")?.addEventListener("click", async () => {
-    const input = document.getElementById("novaCategoria");
-    const v = (input?.value || "").trim();
-    if (!v) return alert("Informe a categoria");
-
-    await safe(async () => await addConfig("categorias", v), null);
-    if (input) input.value = "";
-    await renderTudo();
-  });
-
-  document.getElementById("btnAddPagamento")?.addEventListener("click", async () => {
-    const input = document.getElementById("novoPagamento");
-    const v = (input?.value || "").trim();
-    if (!v) return alert("Informe a forma de pagamento");
-
-    await safe(async () => await addConfig("pagamentos", v), null);
-    if (input) input.value = "";
-    await renderTudo();
-  });
-
-  document.getElementById("btnAddPessoa")?.addEventListener("click", async () => {
-    const input = document.getElementById("novaPessoa");
-    const v = (input?.value || "").trim();
-    if (!v) return alert("Informe a pessoa");
-    if (v === "Só eu") return alert('"Só eu" já existe e é fixo.');
-
-    await safe(async () => await addConfig("pessoas", v), null);
-    if (input) input.value = "";
-    await renderTudo();
-  });
-}
-
-/* ================== EVENTS: LANÇAMENTO ================== */
-function wireFormLancamento() {
-  const form = document.getElementById("formLancamento");
-  if (!form) return;
-
-  form.addEventListener("submit", async (e) => {
-    e.preventDefault();
-
-    try {
-      const tipo = document.getElementById("tipo").value;
-      const valor = parseValor(document.getElementById("valor").value);
-      const parcelas = Math.max(1, parseInt(document.getElementById("parcelas").value) || 1);
-      const local = (document.getElementById("local").value || "").trim();
-      const banco = (document.getElementById("banco").value || "").trim();
-      const pessoa = document.getElementById("pessoa").value;
-      const categoria = document.getElementById("categoria").value;
-      const pagamento = document.getElementById("pagamento").value;
-      const mes = document.getElementById("mes").value;
-
-      if (!tipo || !local || !banco || !pessoa || !categoria || !pagamento || !mes) {
-        alert("Preencha todos os campos.");
-        return;
-      }
-
-      const lanc = {
-        id: editId ?? gerarId(),
-        tipo,
-        valor,
-        parcelas,
-        local,
-        banco,
-        pessoa,
-        categoria,
-        pagamento,
-        mes,
-      };
-
-      await safe(async () => await upsertLancamento(lanc), null);
-
-      editId = null;
-      form.reset();
-      document.getElementById("parcelas").value = 1;
-      document.getElementById("pessoa").value = "Só eu";
-
-      await renderTudo();
-    } catch (err) {
-      alert(err);
-    }
-  });
 }
