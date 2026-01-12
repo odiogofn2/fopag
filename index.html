@@ -10,7 +10,7 @@
 </head>
 <body>
 
-  <!-- ====== LOGIN (sem mexer no CSS; usa seu style.css como estiver) ====== -->
+  <!-- ====== LOGIN ====== -->
   <div class="app" id="authView">
     <header>
       <h1>Controle Financeiro</h1>
@@ -25,10 +25,6 @@
         <button id="btnLogin" type="button">Entrar</button>
 
         <div id="authMsg" style="margin-top:10px; opacity:.85;"></div>
-
-        <div style="margin-top:14px; opacity:.75;">
-          Se você ainda não tem usuário, crie no Supabase Auth (ou me peça que eu incluo botão de cadastro).
-        </div>
       </div>
     </section>
   </div>
@@ -45,14 +41,13 @@
 
     <nav class="tabs">
       <button class="active" data-aba="lancamentos" type="button">Lançamentos</button>
+      <button data-aba="resumo" type="button">Resumo</button>
       <button data-aba="configuracoes" type="button">Configurações</button>
     </nav>
 
     <!-- ================= LANCAMENTOS ================= -->
     <section id="lancamentos" class="aba ativa">
-
       <form id="formLancamento">
-
         <select id="tipo" required>
           <option value="">Tipo</option>
           <option value="entrada">Entrada</option>
@@ -82,12 +77,20 @@
         <span id="totalSaidas">Saídas: R$ 0,00</span>
         <strong id="saldo">Saldo: R$ 0,00</strong>
       </div>
+    </section>
 
-      <div style="margin-top: 22px;">
-        <h2 style="margin-bottom: 10px;">Resumo do mês (por pessoa)</h2>
-        <div id="relatorioMensal"></div>
+    <!-- ================= RESUMO ================= -->
+    <section id="resumo" class="aba">
+      <h2>Resumo por mês e pessoa</h2>
+
+      <div class="box-config" style="margin-bottom: 12px;">
+        <button id="btnAtualizarResumo" type="button">Atualizar resumo</button>
+        <div style="margin-top: 8px; opacity:.8;">
+          * Total = Entradas − Saídas (saldo do mês por pessoa)
+        </div>
       </div>
 
+      <div id="resumoTabela"></div>
     </section>
 
     <!-- ================= CONFIGURACOES ================= -->
@@ -116,7 +119,7 @@
 
       <h2>Pessoas</h2>
       <div class="box-config">
-        <input id="novaPessoa" placeholder="Nova pessoa (ex: Ana)" />
+        <input id="novaPessoa" placeholder="Nova pessoa (ex: Macielle)" />
         <button id="btnAddPessoa" type="button">Adicionar</button>
         <ul id="listaPessoas"></ul>
       </div>
@@ -124,7 +127,6 @@
     </section>
   </div>
 
-  <!-- Supabase v2 -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="script.js"></script>
 </body>
