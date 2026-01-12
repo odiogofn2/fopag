@@ -5,19 +5,13 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 window.__sb = window.__sb || window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const sb = window.__sb;
 
-/* ================== APP CONFIG ================== */
-/**
- * Para o Supabase funcionar:
- * - Inclua no index.html (antes do script.js):
- *   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
- *
- * Tabelas esperadas:
- * - cfg_categorias (nome text UNIQUE)
- * - cfg_pagamentos (nome text UNIQUE)
- * - cfg_pessoas (nome text UNIQUE)
- * - lancamentos (id, tipo, valor, parcelas, local, banco, pessoa, categoria, pagamento, mes)
- */
-
+/* ================== TABELAS (SUPABASE) ==================
+  Esperado:
+  - cfg_categorias (nome text unique)
+  - cfg_pagamentos (nome text unique)
+  - cfg_pessoas   (nome text unique)
+  - lancamentos   (id bigint/uuid, tipo, valor, parcelas, local, banco, pessoa, categoria, pagamento, mes)
+========================================================== */
 const TABLES = {
   categorias: "cfg_categorias",
   pagamentos: "cfg_pagamentos",
@@ -25,38 +19,39 @@ const TABLES = {
   lancamentos: "lancamentos",
 };
 
-// Fallback localStorage (se Supabase falhar)
+/* ================== FALLBACK (LOCALSTORAGE) ================== */
 const STORAGE = {
-  lancamentos: "lancamentos",
   categorias: "categorias",
   pagamentos: "pagamentos",
   pessoas: "pessoas",
+  lancamentos: "lancamentos",
 };
 
 let editId = null;
-let useSupabase = true; // se der erro, cai para false
+let useSupabase = true;
 
 /* ================== INIT ================== */
 document.addEventListener("DOMContentLoaded", async () => {
   configurarAbas();
 
-  // garante defaults no local storage (fallback)
+  // garante defaults no fallback
   iniciarListasLocal();
 
-  // tenta usar Supabase (se falhar, fica no localStorage)
+  // tenta Supabase; se falhar, cai pro localStorage
   await testarSupabase();
 
-  // carrega e renderiza
-  await renderTudo();
-
-  // listeners de botões de config
+  // eventos
   wireConfigButtons();
-
-  // listener salvar lançamento
   wireFormLancamento();
+
+  // render inicial
+  await renderTudo();
 });
 
 /* ================== UTIL ================== */
+const getLocal = (k) => JSON.parse(localStorage.getItem(k)) || [];
+const setLocal = (k, v) => localStorage.setItem(k, JSON.stringify(v));
+
 function brl(n) {
   return (Number(n) || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
@@ -71,16 +66,23 @@ function escapeHtml(str) {
 }
 
 function parseValor(valor) {
-  // aceita "5,99", "5.99", "1.234,56"
+  // aceita 5,99 e 5.99 e 1.234,56
   const v = String(valor).trim();
+  // se vier "5.99" vira "5.99" -> remove pontos de milhar (não tem) e troca vírgula por ponto (não tem) => ok
+  // se vier "1.234,56" -> remove todos "." => "1234,56" => troca "," por "." => 1234.56
   const n = parseFloat(v.replace(/\./g, "").replace(",", "."));
   if (isNaN(n)) throw "Valor inválido";
   return n;
 }
 
 function gerarId() {
-  // id numérico simples
+  // id numérico simples (compatível com bigint no supabase se você usar bigint)
   return Date.now();
+}
+
+function mesAtualYYYYMM() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
 
 /* ================== ABAS ================== */
@@ -90,18 +92,13 @@ function configurarAbas() {
     btn.addEventListener("click", () => {
       tabs.forEach((b) => b.classList.remove("active"));
       document.querySelectorAll(".aba").forEach((a) => a.classList.remove("ativa"));
-
       btn.classList.add("active");
-      const alvo = btn.dataset.aba;
-      document.getElementById(alvo).classList.add("ativa");
+      document.getElementById(btn.dataset.aba).classList.add("ativa");
     });
   });
 }
 
-/* ================== STORAGE HELPERS (local) ================== */
-const getLocal = (k) => JSON.parse(localStorage.getItem(k)) || [];
-const setLocal = (k, v) => localStorage.setItem(k, JSON.stringify(v));
-
+/* ================== DEFAULTS (LOCAL) ================== */
 function iniciarListasLocal() {
   if (!localStorage.getItem(STORAGE.categorias)) {
     setLocal(STORAGE.categorias, ["Alimentação", "Moradia", "Transporte", "Lazer"]);
@@ -117,68 +114,77 @@ function iniciarListasLocal() {
   }
 }
 
-/* ================== SUPABASE SAFE MODE ================== */
+/* ================== SUPABASE CHECK ================== */
 async function testarSupabase() {
   try {
-    // teste simples: tenta ler 1 linha de categorias
+    // tenta ler uma tabela de config
     const { error } = await sb.from(TABLES.categorias).select("nome").limit(1);
     if (error) throw error;
     useSupabase = true;
   } catch (e) {
-    console.warn("Supabase indisponível ou tabela não existe. Usando localStorage.", e);
+    console.warn("Supabase indisponível/bloqueado/tabelas não existem. Usando localStorage.", e);
     useSupabase = false;
   }
 }
 
-/* ================== DATA ACCESS (Supabase ou Local) ================== */
-async function listConfig(tableKey) {
-  if (!useSupabase) {
-    if (tableKey === "categorias") return getLocal(STORAGE.categorias);
-    if (tableKey === "pagamentos") return getLocal(STORAGE.pagamentos);
-    if (tableKey === "pessoas") return getLocal(STORAGE.pessoas);
-    return [];
+/* ================== SAFE WRAPPER ================== */
+async function safe(fn, fallbackValue) {
+  try {
+    return await fn();
+  } catch (e) {
+    console.warn("Falha. Caindo para fallback se possível:", e);
+    if (useSupabase) {
+      useSupabase = false;
+      console.warn("Supabase desativado nesta sessão. Continuando com localStorage.");
+    }
+    return fallbackValue;
   }
+}
 
-  const table = TABLES[tableKey];
+/* ================== DATA ACCESS: CONFIG ================== */
+async function listConfig(key) {
+  if (!useSupabase) {
+    return getLocal(STORAGE[key]);
+  }
+  const table = TABLES[key];
   const { data, error } = await sb.from(table).select("nome").order("nome", { ascending: true });
   if (error) throw error;
   return (data || []).map((x) => x.nome);
 }
 
-async function addConfig(tableKey, nome) {
-  const nomeLimpo = String(nome || "").trim();
-  if (!nomeLimpo) throw "Informe um nome válido";
+async function addConfig(key, nome) {
+  const v = String(nome || "").trim();
+  if (!v) throw "Informe um nome válido";
 
   if (!useSupabase) {
-    const key = STORAGE[tableKey];
-    const lista = getLocal(key);
-    if (lista.includes(nomeLimpo)) throw "Já existe";
-    lista.push(nomeLimpo);
-    setLocal(key, lista);
+    const lista = getLocal(STORAGE[key]);
+    if (lista.includes(v)) throw "Já existe";
+    lista.push(v);
+    setLocal(STORAGE[key], lista);
     return;
   }
 
-  const table = TABLES[tableKey];
-  const { error } = await sb.from(table).insert([{ nome: nomeLimpo }]);
+  const table = TABLES[key];
+  const { error } = await sb.from(table).insert([{ nome: v }]);
   if (error) throw error;
 }
 
-async function delConfig(tableKey, nome) {
-  const nomeLimpo = String(nome || "").trim();
-  if (!nomeLimpo) return;
+async function delConfig(key, nome) {
+  const v = String(nome || "").trim();
+  if (!v) return;
 
   if (!useSupabase) {
-    const key = STORAGE[tableKey];
-    const lista = getLocal(key).filter((x) => x !== nomeLimpo);
-    setLocal(key, lista);
+    const lista = getLocal(STORAGE[key]).filter((x) => x !== v);
+    setLocal(STORAGE[key], lista);
     return;
   }
 
-  const table = TABLES[tableKey];
-  const { error } = await sb.from(table).delete().eq("nome", nomeLimpo);
+  const table = TABLES[key];
+  const { error } = await sb.from(table).delete().eq("nome", v);
   if (error) throw error;
 }
 
+/* ================== DATA ACCESS: LANÇAMENTOS ================== */
 async function listLancamentos() {
   if (!useSupabase) return getLocal(STORAGE.lancamentos);
 
@@ -189,7 +195,6 @@ async function listLancamentos() {
 
   if (error) throw error;
 
-  // normaliza
   return (data || []).map((l) => ({
     id: l.id,
     tipo: l.tipo,
@@ -214,8 +219,6 @@ async function upsertLancamento(l) {
     return;
   }
 
-  // IMPORTANT: Se seu 'id' no Supabase for bigint, isso ok.
-  // Se for uuid, troque gerarId() para uuid.
   const { error } = await sb.from(TABLES.lancamentos).upsert(l, { onConflict: "id" });
   if (error) throw error;
 }
@@ -230,7 +233,7 @@ async function deleteLancamento(id) {
   if (error) throw error;
 }
 
-/* ================== UI RENDER ================== */
+/* ================== RENDER TUDO ================== */
 async function renderTudo() {
   await renderCategorias();
   await renderPagamentos();
@@ -239,8 +242,10 @@ async function renderTudo() {
   await renderRelatorioMensal();
 }
 
+/* ================== RENDER: CATEGORIAS ================== */
 async function renderCategorias() {
   const categorias = await safe(async () => await listConfig("categorias"), getLocal(STORAGE.categorias));
+
   const ul = document.getElementById("listaCategorias");
   const select = document.getElementById("categoria");
 
@@ -251,15 +256,14 @@ async function renderCategorias() {
     ul.innerHTML += `
       <li>
         ${escapeHtml(c)}
-        <button type="button" data-delcat="${escapeHtml(c)}">x</button>
+        <button type="button" data-del="${escapeHtml(c)}">x</button>
       </li>`;
     select.innerHTML += `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`;
   });
 
-  // bind delete buttons
-  ul.querySelectorAll("button[data-delcat]").forEach((btn) => {
+  ul.querySelectorAll("button[data-del]").forEach((btn) => {
     btn.addEventListener("click", async () => {
-      const nome = btn.getAttribute("data-delcat");
+      const nome = btn.getAttribute("data-del");
       if (!confirm("Excluir categoria?")) return;
       await safe(async () => await delConfig("categorias", nome), null);
       await renderTudo();
@@ -267,8 +271,10 @@ async function renderCategorias() {
   });
 }
 
+/* ================== RENDER: PAGAMENTOS ================== */
 async function renderPagamentos() {
   const pagamentos = await safe(async () => await listConfig("pagamentos"), getLocal(STORAGE.pagamentos));
+
   const ul = document.getElementById("listaPagamentos");
   const select = document.getElementById("pagamento");
 
@@ -279,14 +285,14 @@ async function renderPagamentos() {
     ul.innerHTML += `
       <li>
         ${escapeHtml(p)}
-        <button type="button" data-delpag="${escapeHtml(p)}">x</button>
+        <button type="button" data-del="${escapeHtml(p)}">x</button>
       </li>`;
     select.innerHTML += `<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`;
   });
 
-  ul.querySelectorAll("button[data-delpag]").forEach((btn) => {
+  ul.querySelectorAll("button[data-del]").forEach((btn) => {
     btn.addEventListener("click", async () => {
-      const nome = btn.getAttribute("data-delpag");
+      const nome = btn.getAttribute("data-del");
       if (!confirm("Excluir forma de pagamento?")) return;
       await safe(async () => await delConfig("pagamentos", nome), null);
       await renderTudo();
@@ -294,9 +300,9 @@ async function renderPagamentos() {
   });
 }
 
+/* ================== RENDER: PESSOAS ================== */
 async function renderPessoas() {
   let pessoas = await safe(async () => await listConfig("pessoas"), getLocal(STORAGE.pessoas));
-  // garante "Só eu"
   if (!pessoas.includes("Só eu")) pessoas = ["Só eu", ...pessoas];
 
   const ul = document.getElementById("listaPessoas");
@@ -307,24 +313,26 @@ async function renderPessoas() {
 
   pessoas.forEach((p) => {
     const podeRemover = p !== "Só eu";
+
     ul.innerHTML += `
       <li>
         ${escapeHtml(p)}
         ${
           podeRemover
-            ? `<button type="button" data-delpessoa="${escapeHtml(p)}">x</button>`
+            ? `<button type="button" data-del="${escapeHtml(p)}">x</button>`
             : `<span style="opacity:.6;">fixo</span>`
         }
       </li>`;
+
     select.innerHTML += `<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`;
   });
 
-  // default
   if (!select.value) select.value = "Só eu";
 
-  ul.querySelectorAll("button[data-delpessoa]").forEach((btn) => {
+  ul.querySelectorAll("button[data-del]").forEach((btn) => {
     btn.addEventListener("click", async () => {
-      const nome = btn.getAttribute("data-delpessoa");
+      const nome = btn.getAttribute("data-del");
+      if (nome === "Só eu") return;
       if (!confirm("Excluir pessoa?")) return;
       await safe(async () => await delConfig("pessoas", nome), null);
       await renderTudo();
@@ -332,6 +340,7 @@ async function renderPessoas() {
   });
 }
 
+/* ================== RENDER: LANÇAMENTOS ================== */
 async function renderLancamentos() {
   const lista = await safe(async () => await listLancamentos(), getLocal(STORAGE.lancamentos));
   const ul = document.getElementById("listaLancamentos");
@@ -342,12 +351,11 @@ async function renderLancamentos() {
 
   lista.forEach((l) => {
     const tipo = String(l.tipo || "").toUpperCase();
-    const valorTxt = brl(l.valor);
     const parcelasTxt = (Number(l.parcelas) || 1) > 1 ? ` | ${l.parcelas}x` : "";
 
     ul.innerHTML += `
       <li>
-        ${escapeHtml(tipo)} | ${valorTxt}
+        ${escapeHtml(tipo)} | ${brl(l.valor)}
         | ${escapeHtml(l.pessoa || "Só eu")}
         | ${escapeHtml(l.pagamento || "")}
         | ${escapeHtml(l.banco || "")}
@@ -366,12 +374,13 @@ async function renderLancamentos() {
   document.getElementById("totalSaidas").innerText = `Saídas: ${brl(saidas)}`;
   document.getElementById("saldo").innerText = `Saldo: ${brl(entradas - saidas)}`;
 
-  // bind edit/delete
+  // editar
   ul.querySelectorAll("button[data-edit]").forEach((btn) => {
     btn.addEventListener("click", async () => {
       const id = Number(btn.getAttribute("data-edit"));
       const item = lista.find((x) => Number(x.id) === id);
       if (!item) return;
+
       editId = id;
 
       document.getElementById("tipo").value = item.tipo || "";
@@ -386,6 +395,7 @@ async function renderLancamentos() {
     });
   });
 
+  // excluir
   ul.querySelectorAll("button[data-del]").forEach((btn) => {
     btn.addEventListener("click", async () => {
       const id = Number(btn.getAttribute("data-del"));
@@ -403,8 +413,8 @@ async function renderRelatorioMensal() {
 
   const lista = await safe(async () => await listLancamentos(), getLocal(STORAGE.lancamentos));
 
+  // mês de referência = mês selecionado no formulário; se vazio, mês atual
   const mesRef = (document.getElementById("mes")?.value || "").trim() || mesAtualYYYYMM();
-
   const lanc = lista.filter((l) => String(l.mes || "") === mesRef);
 
   if (lanc.length === 0) {
@@ -412,19 +422,18 @@ async function renderRelatorioMensal() {
     return;
   }
 
-  const agg = {}; // pessoa -> { entradas, saidas, porPagamento, porBanco, porCategoria }
+  // pessoa -> { entradas, saidas, porPagamento, porBanco, porCategoria }
+  const agg = {};
 
-  function ensure(pessoa) {
-    if (!agg[pessoa]) {
-      agg[pessoa] = { entradas: 0, saidas: 0, porPagamento: {}, porBanco: {}, porCategoria: {} };
-    }
-    return agg[pessoa];
-  }
+  const ensure = (p) => {
+    if (!agg[p]) agg[p] = { entradas: 0, saidas: 0, porPagamento: {}, porBanco: {}, porCategoria: {} };
+    return agg[p];
+  };
 
-  function addMap(map, key, valor) {
+  const addMap = (map, key, val) => {
     if (!map[key]) map[key] = 0;
-    map[key] += valor;
-  }
+    map[key] += val;
+  };
 
   for (const l of lanc) {
     const pessoa = l.pessoa || "Só eu";
@@ -438,8 +447,8 @@ async function renderRelatorioMensal() {
     if (l.tipo === "entrada") o.entradas += valor;
     else o.saidas += valor;
 
-    // você pediu "por forma de pagamento, banco, categoria" por mês/pessoa
-    // aqui soma tudo; se quiser somente SAÍDAS nesses agrupamentos, eu ajusto.
+    // Agrupamentos: total do mês daquela pessoa (entrada+saída).
+    // Se você quiser agrupar SOMENTE SAÍDAS aqui, eu mudo em 2 linhas.
     addMap(o.porPagamento, pagamento, valor);
     addMap(o.porBanco, banco, valor);
     addMap(o.porCategoria, categoria, valor);
@@ -447,19 +456,18 @@ async function renderRelatorioMensal() {
 
   const pessoas = Object.keys(agg).sort((a, b) => a.localeCompare(b, "pt-BR"));
 
-  const bloco = pessoas.map((pessoa) => {
-    const r = agg[pessoa];
+  const listaTop = (objMap) =>
+    Object.entries(objMap)
+      .sort((a, b) => b[1] - a[1])
+      .map(([k, v]) => `<li>${escapeHtml(k)}: <strong>${brl(v)}</strong></li>`)
+      .join("") || `<li style="opacity:.75;">(vazio)</li>`;
 
-    const listaTop = (objMap) =>
-      Object.entries(objMap)
-        .sort((a, b) => b[1] - a[1])
-        .map(([k, v]) => `<li>${escapeHtml(k)}: <strong>${brl(v)}</strong></li>`)
-        .join("") || `<li style="opacity:.75;">(vazio)</li>`;
-
+  const blocos = pessoas.map((p) => {
+    const r = agg[p];
     return `
       <div style="border:1px solid #e5e7eb; border-radius:10px; padding:12px; margin-bottom:12px;">
         <div style="display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap;">
-          <div style="font-weight:700;">${escapeHtml(pessoa)}</div>
+          <div style="font-weight:700;">${escapeHtml(p)}</div>
           <div style="opacity:.85;">
             Entradas: <strong>${brl(r.entradas)}</strong> |
             Saídas: <strong>${brl(r.saidas)}</strong> |
@@ -489,63 +497,52 @@ async function renderRelatorioMensal() {
     <div style="margin-bottom:10px; opacity:.8;">
       Mês de referência: <strong>${escapeHtml(mesRef)}</strong>
     </div>
-    ${bloco}
+    ${blocos}
   `;
 }
 
-function mesAtualYYYYMM() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-}
-
-/* ================== EVENTS ================== */
+/* ================== EVENTS: CONFIG ================== */
 function wireConfigButtons() {
-  const btnAddCategoria = document.getElementById("btnAddCategoria");
-  const btnAddPagamento = document.getElementById("btnAddPagamento");
-  const btnAddPessoa = document.getElementById("btnAddPessoa");
+  document.getElementById("btnAddCategoria")?.addEventListener("click", async () => {
+    const input = document.getElementById("novaCategoria");
+    const v = (input?.value || "").trim();
+    if (!v) return alert("Informe a categoria");
 
-  if (btnAddCategoria) {
-    btnAddCategoria.addEventListener("click", async () => {
-      const input = document.getElementById("novaCategoria");
-      const v = (input?.value || "").trim();
-      if (!v) return alert("Informe a categoria");
-      await safe(async () => await addConfig("categorias", v), null);
-      if (input) input.value = "";
-      await renderTudo();
-    });
-  }
+    await safe(async () => await addConfig("categorias", v), null);
+    if (input) input.value = "";
+    await renderTudo();
+  });
 
-  if (btnAddPagamento) {
-    btnAddPagamento.addEventListener("click", async () => {
-      const input = document.getElementById("novoPagamento");
-      const v = (input?.value || "").trim();
-      if (!v) return alert("Informe a forma de pagamento");
-      await safe(async () => await addConfig("pagamentos", v), null);
-      if (input) input.value = "";
-      await renderTudo();
-    });
-  }
+  document.getElementById("btnAddPagamento")?.addEventListener("click", async () => {
+    const input = document.getElementById("novoPagamento");
+    const v = (input?.value || "").trim();
+    if (!v) return alert("Informe a forma de pagamento");
 
-  if (btnAddPessoa) {
-    btnAddPessoa.addEventListener("click", async () => {
-      const input = document.getElementById("novaPessoa");
-      const v = (input?.value || "").trim();
-      if (!v) return alert("Informe a pessoa");
-      if (v === "Só eu") return alert('"Só eu" já existe e é fixo.');
+    await safe(async () => await addConfig("pagamentos", v), null);
+    if (input) input.value = "";
+    await renderTudo();
+  });
 
-      await safe(async () => await addConfig("pessoas", v), null);
-      if (input) input.value = "";
-      await renderTudo();
-    });
-  }
+  document.getElementById("btnAddPessoa")?.addEventListener("click", async () => {
+    const input = document.getElementById("novaPessoa");
+    const v = (input?.value || "").trim();
+    if (!v) return alert("Informe a pessoa");
+    if (v === "Só eu") return alert('"Só eu" já existe e é fixo.');
+
+    await safe(async () => await addConfig("pessoas", v), null);
+    if (input) input.value = "";
+    await renderTudo();
+  });
 }
 
+/* ================== EVENTS: LANÇAMENTO ================== */
 function wireFormLancamento() {
   const form = document.getElementById("formLancamento");
   if (!form) return;
 
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
+
     try {
       const tipo = document.getElementById("tipo").value;
       const valor = parseValor(document.getElementById("valor").value);
@@ -587,20 +584,4 @@ function wireFormLancamento() {
       alert(err);
     }
   });
-}
-
-/* ================== SAFE WRAPPER ================== */
-async function safe(fn, fallbackValue) {
-  try {
-    return await fn();
-  } catch (e) {
-    console.warn("Falha (usando fallback se possível):", e);
-
-    // se falhar supabase, desliga e segue no local
-    if (useSupabase) {
-      useSupabase = false;
-      console.warn("Supabase desativado para esta sessão. Continuando com localStorage.");
-    }
-    return fallbackValue;
-  }
 }
