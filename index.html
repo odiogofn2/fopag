@@ -3,7 +3,6 @@
 <head>
   <meta charset="UTF-8">
   <title>Controle Financeiro</title>
-
   <link rel="stylesheet" href="style.css">
   <link rel="icon" href="data:,">
 </head>
@@ -15,72 +14,41 @@
     <h1>Controle Financeiro</h1>
   </header>
 
-  <!-- LOGIN -->
-  <section id="authBox" style="padding:30px; display:none;">
-    <h2 style="margin-bottom:12px;">Acesso</h2>
-
-    <form id="formAuth" style="display:grid; gap:12px; grid-template-columns: 1fr;">
-      <input id="authEmail" type="email" placeholder="Seu e-mail" required>
-      <input id="authPass" type="password" placeholder="Senha" required>
-      <button type="submit">Entrar / Cadastrar</button>
-    </form>
-
-    <p style="margin-top:10px; color:#6b7280; font-size:13px;">
-      Ele tenta entrar. Se não existir, cria sua conta.
-      (Se exigir confirmação por e-mail, confirme e tente entrar de novo.)
-    </p>
-
-    <div style="margin-top:16px;">
-      <button id="btnLogout" type="button" style="display:none;">Sair</button>
-    </div>
-  </section>
-
-  <!-- TABS -->
-  <nav class="tabs" id="tabs" style="display:none;">
+  <nav class="tabs">
     <button class="active" data-aba="lancamentos">Lançamentos</button>
-    <button data-aba="graficos">Gráficos</button>
     <button data-aba="configuracoes">Configurações</button>
   </nav>
 
   <!-- ================= LANCAMENTOS ================= -->
-  <section id="lancamentos" class="aba ativa" style="display:none;">
+  <section id="lancamentos" class="aba ativa">
 
     <form id="formLancamento">
+
       <select id="tipo" required>
         <option value="">Tipo</option>
         <option value="entrada">Entrada</option>
         <option value="saida">Saída</option>
       </select>
 
-      <input id="valor" placeholder="Valor total (ex: 300,00)" required>
+      <input id="valor" placeholder="Valor (ex: 5,99)" required>
 
       <input id="parcelas" type="number" min="1" value="1" placeholder="Parcelas">
 
-      <input id="local" placeholder="Local / Descrição" required>
+      <input id="local" placeholder="Descrição / Local" required>
+
+      <!-- NOVO: BANCO -->
+      <input id="banco" placeholder="Banco (ex: Nubank, Caixa, BB)" required>
+
+      <!-- NOVO: PESSOA -->
+      <select id="pessoa" required></select>
 
       <select id="categoria" required></select>
       <select id="pagamento" required></select>
-      <select id="banco" required></select>
 
       <input type="month" id="mes" required>
 
-      <!-- NOVO: DIVIDIR COM TERCEIROS -->
-      <div style="display:grid; gap:8px;">
-        <label style="font-size:13px; color:#6b7280;">
-          Dividir com terceiros (selecione 1 ou mais)
-        </label>
-        <select id="terceiros" multiple></select>
-        <label style="display:flex; gap:8px; align-items:center; font-size:13px; color:#6b7280;">
-          <input type="checkbox" id="dividirAuto">
-          Dividir automaticamente (cria 1 lançamento por pessoa + “Só eu”)
-        </label>
-        <small style="color:#6b7280;">Dica: segure Ctrl (ou Cmd) para marcar mais de um.</small>
-      </div>
-
       <button type="submit">Salvar</button>
     </form>
-
-    <input type="month" id="mesFiltro">
 
     <ul id="listaLancamentos"></ul>
 
@@ -90,20 +58,16 @@
       <strong id="saldo">Saldo: R$ 0,00</strong>
     </div>
 
-  </section>
+    <!-- ✅ NOVO: RELATÓRIO MENSAL POR PESSOA -->
+    <div style="margin-top: 22px;">
+      <h2 style="margin-bottom: 10px;">Resumo do mês (por pessoa)</h2>
+      <div id="relatorioMensal"></div>
+    </div>
 
-  <!-- ================= GRAFICOS ================= -->
-  <section id="graficos" class="aba" style="display:none;">
-    <h2>Gráficos</h2>
-
-    <canvas id="graficoMensal" height="110"></canvas>
-    <canvas id="graficoCategorias" height="110"></canvas>
-    <canvas id="graficoBancos" height="110"></canvas>
-    <canvas id="graficoSaldo" height="110"></canvas>
   </section>
 
   <!-- ================= CONFIGURACOES ================= -->
-  <section id="configuracoes" class="aba" style="display:none;">
+  <section id="configuracoes" class="aba">
 
     <h2>Categorias</h2>
     <div class="box-config">
@@ -119,31 +83,18 @@
       <ul id="listaPagamentos"></ul>
     </div>
 
-    <h2>Bancos</h2>
+    <!-- ✅ NOVO: PESSOAS (inclui Só eu) -->
+    <h2>Pessoas</h2>
     <div class="box-config">
-      <input id="novoBanco" placeholder="Novo banco">
-      <button id="btnAddBanco" type="button">Adicionar</button>
-      <ul id="listaBancos"></ul>
-    </div>
-
-    <!-- NOVO: TERCEIROS -->
-    <h2>Terceiros</h2>
-    <div class="box-config">
-      <input id="novoTerceiro" placeholder="Nome do terceiro">
-      <button id="btnAddTerceiro" type="button">Adicionar</button>
-      <ul id="listaTerceiros"></ul>
-    </div>
-
-    <div style="margin-top:20px;">
-      <button id="btnLogout2" type="button">Sair</button>
+      <input id="novaPessoa" placeholder="Nova pessoa (ex: Ana)">
+      <button id="btnAddPessoa" type="button">Adicionar</button>
+      <ul id="listaPessoas"></ul>
     </div>
 
   </section>
 
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="script.js"></script>
 </body>
 </html>
