@@ -17,6 +17,7 @@ const T = {
 /* ================== ESTADO ================== */
 let currentUser = null;
 let editTxId = null;
+let editTxMeta = null; // { group_id, installment_current, installments_total }
 let appEventsWired = false;
 
 /* ================== INIT ================== */
@@ -24,7 +25,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   configurarAbas();
   wireAuthButtons();
 
-  // Se já tiver sessão, entra direto
+  // sessão automática
   const { data } = await sb.auth.getSession();
   if (data?.session?.user) {
     currentUser = data.session.user;
@@ -59,6 +60,7 @@ function escapeHtml(str) {
 }
 
 function parseValor(valor) {
+  // aceita 5,99 e 5.99 e 1.234,56
   const v = String(valor || "").trim();
   const n = parseFloat(v.replace(/\./g, "").replace(",", "."));
   if (isNaN(n)) throw new Error("Valor inválido.");
@@ -99,7 +101,6 @@ function configurarAbas() {
       const target = document.getElementById(btn.dataset.aba);
       target.classList.add("ativa");
 
-      // sempre que abrir a aba Resumo, atualiza
       if (btn.dataset.aba === "resumo" && currentUser) {
         await renderResumoTab();
       }
@@ -136,6 +137,7 @@ function wireAuthButtons() {
     await sb.auth.signOut();
     currentUser = null;
     editTxId = null;
+    editTxMeta = null;
     setViews(false);
     showAuthMsg("Você saiu.");
   });
@@ -250,14 +252,18 @@ async function renderTudo() {
 
   await renderLancamentos();
 
-  // se a aba atual for resumo, atualiza também
-  const resumoAbaAtiva = document.getElementById("resumo")?.classList.contains("ativa");
-  if (resumoAbaAtiva) await renderResumoTab();
+  // se estiver na aba resumo, atualiza também
+  const resumoAtivo = document.getElementById("resumo")?.classList.contains("ativa");
+  if (resumoAtivo) await renderResumoTab();
 }
 
 /* ================== RENDER CONFIG + SELECTS ================== */
 async function renderBancos() {
   const bancos = await listSimple(T.banks);
+
+  const sel = $("banco");
+  sel.innerHTML = `<option value="">Banco</option>`;
+  bancos.forEach(b => (sel.innerHTML += `<option value="${b.id}">${escapeHtml(b.name)}</option>`));
 
   const ul = $("listaBancos");
   ul.innerHTML = "";
@@ -277,14 +283,14 @@ async function renderBancos() {
       await renderTudo();
     });
   });
-
-  const sel = $("banco");
-  sel.innerHTML = `<option value="">Banco</option>`;
-  bancos.forEach(b => (sel.innerHTML += `<option value="${b.id}">${escapeHtml(b.name)}</option>`));
 }
 
 async function renderCategorias() {
   const cats = await listSimple(T.categories);
+
+  const sel = $("categoria");
+  sel.innerHTML = `<option value="">Categoria</option>`;
+  cats.forEach(c => (sel.innerHTML += `<option value="${c.id}">${escapeHtml(c.name)}</option>`));
 
   const ul = $("listaCategorias");
   ul.innerHTML = "";
@@ -304,14 +310,14 @@ async function renderCategorias() {
       await renderTudo();
     });
   });
-
-  const sel = $("categoria");
-  sel.innerHTML = `<option value="">Categoria</option>`;
-  cats.forEach(c => (sel.innerHTML += `<option value="${c.id}">${escapeHtml(c.name)}</option>`));
 }
 
 async function renderPagamentos() {
   const pays = await listSimple(T.payment_methods);
+
+  const sel = $("pagamento");
+  sel.innerHTML = `<option value="">Forma de pagamento</option>`;
+  pays.forEach(p => (sel.innerHTML += `<option value="${p.id}">${escapeHtml(p.name)}</option>`));
 
   const ul = $("listaPagamentos");
   ul.innerHTML = "";
@@ -331,14 +337,14 @@ async function renderPagamentos() {
       await renderTudo();
     });
   });
-
-  const sel = $("pagamento");
-  sel.innerHTML = `<option value="">Forma de pagamento</option>`;
-  pays.forEach(p => (sel.innerHTML += `<option value="${p.id}">${escapeHtml(p.name)}</option>`));
 }
 
 async function renderPessoas() {
   const people = await listSimple(T.third_parties);
+
+  const sel = $("pessoa");
+  sel.innerHTML = `<option value="__self__">Só eu</option>`;
+  people.forEach(p => (sel.innerHTML += `<option value="${p.id}">${escapeHtml(p.name)}</option>`));
 
   const ul = $("listaPessoas");
   ul.innerHTML = `<li>Só eu <span style="opacity:.6;">fixo</span></li>`;
@@ -358,10 +364,6 @@ async function renderPessoas() {
       await renderTudo();
     });
   });
-
-  const sel = $("pessoa");
-  sel.innerHTML = `<option value="__self__">Só eu</option>`;
-  people.forEach(p => (sel.innerHTML += `<option value="${p.id}">${escapeHtml(p.name)}</option>`));
 }
 
 /* ================== EVENTS ================== */
@@ -369,61 +371,53 @@ function wireAppEvents() {
   if (appEventsWired) return;
   appEventsWired = true;
 
-  $("btnAddBanco").addEventListener("click", async () => {
-    try {
-      const v = ($("novoBanco").value || "").trim();
-      if (!v) return alert("Informe o banco.");
-      await insertSimple(T.banks, v);
-      $("novoBanco").value = "";
-      await renderTudo();
-    } catch (e) { alert(e.message || String(e)); }
+  $("btnAddBanco")?.addEventListener("click", async () => {
+    const v = ($("novoBanco").value || "").trim();
+    if (!v) return alert("Informe o banco.");
+    await insertSimple(T.banks, v);
+    $("novoBanco").value = "";
+    await renderTudo();
   });
 
-  $("btnAddCategoria").addEventListener("click", async () => {
-    try {
-      const v = ($("novaCategoria").value || "").trim();
-      if (!v) return alert("Informe a categoria.");
-      await insertSimple(T.categories, v);
-      $("novaCategoria").value = "";
-      await renderTudo();
-    } catch (e) { alert(e.message || String(e)); }
+  $("btnAddCategoria")?.addEventListener("click", async () => {
+    const v = ($("novaCategoria").value || "").trim();
+    if (!v) return alert("Informe a categoria.");
+    await insertSimple(T.categories, v);
+    $("novaCategoria").value = "";
+    await renderTudo();
   });
 
-  $("btnAddPagamento").addEventListener("click", async () => {
-    try {
-      const v = ($("novoPagamento").value || "").trim();
-      if (!v) return alert("Informe a forma de pagamento.");
-      await insertSimple(T.payment_methods, v);
-      $("novoPagamento").value = "";
-      await renderTudo();
-    } catch (e) { alert(e.message || String(e)); }
+  $("btnAddPagamento")?.addEventListener("click", async () => {
+    const v = ($("novoPagamento").value || "").trim();
+    if (!v) return alert("Informe a forma de pagamento.");
+    await insertSimple(T.payment_methods, v);
+    $("novoPagamento").value = "";
+    await renderTudo();
   });
 
-  $("btnAddPessoa").addEventListener("click", async () => {
-    try {
-      const v = ($("novaPessoa").value || "").trim();
-      if (!v) return alert("Informe a pessoa.");
-      await insertSimple(T.third_parties, v);
-      $("novaPessoa").value = "";
-      await renderTudo();
-    } catch (e) { alert(e.message || String(e)); }
+  $("btnAddPessoa")?.addEventListener("click", async () => {
+    const v = ($("novaPessoa").value || "").trim();
+    if (!v) return alert("Informe a pessoa.");
+    await insertSimple(T.third_parties, v);
+    $("novaPessoa").value = "";
+    await renderTudo();
   });
 
   $("btnAtualizarResumo")?.addEventListener("click", async () => {
-    try {
-      await renderResumoTab();
-    } catch (e) {
-      alert(e.message || String(e));
-    }
+    await renderResumoTab();
   });
 
-  $("formLancamento").addEventListener("submit", async (e) => {
+  $("resumoPessoaSelect")?.addEventListener("change", async () => {
+    await renderResumoPessoaTabela();
+  });
+
+  $("formLancamento")?.addEventListener("submit", async (e) => {
     e.preventDefault();
 
     try {
       const type = $("tipo").value;
       const amount = parseValor($("valor").value);
-      const installmentsTotal = Math.max(1, parseInt($("parcelas").value || "1", 10) || 1);
+      const installmentsTotalInput = Math.max(1, parseInt($("parcelas").value || "1", 10) || 1);
       const description = ($("descricao").value || "").trim();
       const monthFirstDay = monthInputToDateFirstDay($("mes").value);
 
@@ -440,11 +434,16 @@ function wireAppEvents() {
         return;
       }
 
-      // EDITAR: edita só a linha selecionada
+      // ===== EDITAR (somente a linha selecionada) =====
       if (editTxId) {
+        const keepCurrent = editTxMeta?.installment_current ?? 1;
+        const keepTotal = editTxMeta?.installments_total ?? installmentsTotalInput;
+        const keepGroup = editTxMeta?.group_id ?? null;
+
         const payload = {
           id: editTxId,
           user_id: currentUser.id,
+          group_id: keepGroup,
           type,
           amount,
           description,
@@ -454,21 +453,28 @@ function wireAppEvents() {
           payment_method_id,
           is_self,
           third_party_id,
-          installment_current: 1,
-          installments_total: installmentsTotal,
+          installment_current: keepCurrent,
+          installments_total: keepTotal,
         };
 
         await upsertManyTransactions([payload]);
 
+        // reset edição
         editTxId = null;
+        editTxMeta = null;
+        $("parcelas").disabled = false;
+
         $("formLancamento").reset();
         $("parcelas").value = 1;
 
         await renderLancamentos();
+        const resumoAtivo = document.getElementById("resumo")?.classList.contains("ativa");
+        if (resumoAtivo) await renderResumoTab();
         return;
       }
 
-      // NOVO: cria parcelas reais usando group_id
+      // ===== NOVO (parcelas reais) =====
+      const installmentsTotal = installmentsTotalInput;
       const group_id = installmentsTotal > 1 ? uuid() : null;
 
       const rows = [];
@@ -497,6 +503,8 @@ function wireAppEvents() {
       $("parcelas").value = 1;
 
       await renderLancamentos();
+      const resumoAtivo = document.getElementById("resumo")?.classList.contains("ativa");
+      if (resumoAtivo) await renderResumoTab();
 
     } catch (err) {
       console.error(err);
@@ -505,10 +513,9 @@ function wireAppEvents() {
   });
 }
 
-/* ================== LANCAMENTOS ================== */
+/* ================== LANÇAMENTOS (COMPLETO) ================== */
 async function renderLancamentos() {
   const lista = await listTransactions();
-
   const ul = $("listaLancamentos");
   ul.innerHTML = "";
 
@@ -529,7 +536,10 @@ async function renderLancamentos() {
         | ${escapeHtml(t.category_name)}
         ${parcelasTxt}
         <button type="button" data-edit="${t.id}">✏️</button>
-        <button type="button" data-del="${t.id}" data-group="${t.group_id || ""}" data-total="${t.installments_total || 1}">🗑</button>
+        <button type="button"
+          data-del="${t.id}"
+          data-group="${t.group_id || ""}"
+          data-total="${t.installments_total || 1}">🗑</button>
       </li>
     `;
 
@@ -541,7 +551,7 @@ async function renderLancamentos() {
   $("totalSaidas").innerText = `Saídas: ${brl(saidas)}`;
   $("saldo").innerText = `Saldo: ${brl(entradas - saidas)}`;
 
-  // delete
+  // ===== EXCLUIR =====
   ul.querySelectorAll("button[data-del]").forEach(btn => {
     btn.addEventListener("click", async () => {
       const id = btn.getAttribute("data-del");
@@ -568,11 +578,22 @@ async function renderLancamentos() {
         await deleteTransaction(id);
       }
 
+      // se estava editando algo que foi apagado, reseta
+      if (editTxId === id) {
+        editTxId = null;
+        editTxMeta = null;
+        $("parcelas").disabled = false;
+        $("formLancamento").reset();
+        $("parcelas").value = 1;
+      }
+
       await renderLancamentos();
+      const resumoAtivo = document.getElementById("resumo")?.classList.contains("ativa");
+      if (resumoAtivo) await renderResumoTab();
     });
   });
 
-  // edit
+  // ===== EDITAR =====
   ul.querySelectorAll("button[data-edit]").forEach(btn => {
     btn.addEventListener("click", async () => {
       const id = btn.getAttribute("data-edit");
@@ -580,58 +601,67 @@ async function renderLancamentos() {
       if (!item) return;
 
       editTxId = id;
+      editTxMeta = {
+        group_id: item.group_id || null,
+        installment_current: item.installment_current || 1,
+        installments_total: item.installments_total || 1,
+      };
 
       $("tipo").value = item.type || "";
       $("valor").value = String(item.amount ?? "").replace(".", ",");
-      $("parcelas").value = item.installments_total || 1;
       $("descricao").value = item.description || "";
       $("mes").value = dateToYYYYMM(item.month);
 
       $("banco").value = item.bank_id || "";
       $("categoria").value = item.category_id || "";
       $("pagamento").value = item.payment_method_id || "";
+
       $("pessoa").value = item.is_self ? "__self__" : (item.third_party_id || "__self__");
+
+      // parcelas: mostra o total mas bloqueia para não quebrar o grupo
+      $("parcelas").value = item.installments_total || 1;
+      $("parcelas").disabled = true;
     });
   });
 }
 
 /* ================== RESUMO TAB ================== */
 async function renderResumoTab() {
-  const container = $("resumoTabela");
-  if (!container) return;
+  await renderResumoTabelaGeral();
+  await renderResumoPessoaSelect();
+  await renderResumoPessoaTabela();
+}
 
+/* ======= TABELA 1: MÊS x PESSOA (SALDO) ======= */
+async function renderResumoTabelaGeral() {
+  const container = $("resumoTabela");
   const tx = await listTransactions();
+
   if (!tx.length) {
     container.innerHTML = `<div style="opacity:.75;">Sem lançamentos cadastrados.</div>`;
     return;
   }
 
-  // Pessoas: "Só eu" + nomes dos terceiros encontrados (colunas)
-  const pessoasSet = new Set();
-  pessoasSet.add("Só eu");
+  // Pessoas (colunas)
+  const pessoasSet = new Set(["Só eu"]);
   tx.forEach(t => pessoasSet.add(t.person_name || "Só eu"));
   const pessoas = Array.from(pessoasSet).sort((a, b) => a.localeCompare(b, "pt-BR"));
 
-  // Meses (linhas): YYYY-MM
+  // Meses (linhas)
   const mesesSet = new Set();
   tx.forEach(t => mesesSet.add(dateToYYYYMM(t.month)));
-  const meses = Array.from(mesesSet).sort(); // ordem crescente
+  const meses = Array.from(mesesSet).sort();
 
-  // pivot[mes][pessoa] = total
   const pivot = {};
   for (const mes of meses) pivot[mes] = {};
 
   for (const t of tx) {
     const mes = dateToYYYYMM(t.month);
     const pessoa = t.person_name || "Só eu";
-
-    // total = entradas - saídas
-    const signed = (t.type === "entrada") ? t.amount : -t.amount;
-
+    const signed = (t.type === "entrada") ? t.amount : -t.amount; // saldo
     pivot[mes][pessoa] = (pivot[mes][pessoa] || 0) + signed;
   }
 
-  // monta tabela simples
   const ths = [`<th style="text-align:left; padding:8px; border-bottom:1px solid #e5e7eb;">Mês</th>`]
     .concat(pessoas.map(p => `<th style="text-align:right; padding:8px; border-bottom:1px solid #e5e7eb;">${escapeHtml(p)}</th>`))
     .join("");
@@ -650,6 +680,94 @@ async function renderResumoTab() {
   }).join("");
 
   container.innerHTML = `
+    <div style="overflow:auto;">
+      <table style="width:100%; border-collapse:collapse;">
+        <thead><tr>${ths}</tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+  `;
+}
+
+/* ======= SELECT: PESSOAS (para Tabela 2) ======= */
+async function renderResumoPessoaSelect() {
+  const sel = $("resumoPessoaSelect");
+  if (!sel) return;
+
+  const tx = await listTransactions();
+  const pessoasSet = new Set(["Só eu"]);
+  tx.forEach(t => pessoasSet.add(t.person_name || "Só eu"));
+  const pessoas = Array.from(pessoasSet).sort((a, b) => a.localeCompare(b, "pt-BR"));
+
+  const current = sel.value || pessoas[0] || "Só eu";
+
+  sel.innerHTML = "";
+  pessoas.forEach(p => {
+    sel.innerHTML += `<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`;
+  });
+
+  const opt = Array.from(sel.options).find(o => o.value === current);
+  if (opt) sel.value = current;
+}
+
+/* ======= TABELA 2: (PESSOA) MÊS x PAGAMENTO (APENAS SAÍDAS) ======= */
+async function renderResumoPessoaTabela() {
+  const container = $("resumoPessoaTabela");
+  const sel = $("resumoPessoaSelect");
+  if (!container || !sel) return;
+
+  const pessoaEscolhida = sel.value || "Só eu";
+  const tx = await listTransactions();
+
+  const filtrados = tx.filter(t => {
+    const pessoa = t.person_name || "Só eu";
+    return pessoa === pessoaEscolhida && t.type === "saida";
+  });
+
+  if (!filtrados.length) {
+    container.innerHTML = `<div style="opacity:.75;">Sem gastos (saídas) para ${escapeHtml(pessoaEscolhida)}.</div>`;
+    return;
+  }
+
+  // colunas: formas de pagamento
+  const paySet = new Set();
+  filtrados.forEach(t => paySet.add(t.payment_name || "Não informado"));
+  const pays = Array.from(paySet).sort((a, b) => a.localeCompare(b, "pt-BR"));
+
+  // linhas: meses
+  const mesesSet = new Set();
+  filtrados.forEach(t => mesesSet.add(dateToYYYYMM(t.month)));
+  const meses = Array.from(mesesSet).sort();
+
+  const pivot = {};
+  meses.forEach(m => pivot[m] = {});
+  for (const t of filtrados) {
+    const mes = dateToYYYYMM(t.month);
+    const pay = t.payment_name || "Não informado";
+    pivot[mes][pay] = (pivot[mes][pay] || 0) + t.amount;
+  }
+
+  const ths = [`<th style="text-align:left; padding:8px; border-bottom:1px solid #e5e7eb;">Mês</th>`]
+    .concat(pays.map(p => `<th style="text-align:right; padding:8px; border-bottom:1px solid #e5e7eb;">${escapeHtml(p)}</th>`))
+    .join("");
+
+  const rows = meses.map(mes => {
+    const tds = pays.map(p => {
+      const val = pivot[mes][p] || 0;
+      return `<td style="text-align:right; padding:8px; border-bottom:1px solid #f1f5f9;">${brl(val)}</td>`;
+    }).join("");
+
+    return `
+      <tr>
+        <td style="text-align:left; padding:8px; border-bottom:1px solid #f1f5f9;"><strong>${escapeHtml(mes)}</strong></td>
+        ${tds}
+      </tr>`;
+  }).join("");
+
+  container.innerHTML = `
+    <div style="margin-bottom:10px; opacity:.85;">
+      Pessoa: <strong>${escapeHtml(pessoaEscolhida)}</strong> — Gastos por mês x forma de pagamento
+    </div>
     <div style="overflow:auto;">
       <table style="width:100%; border-collapse:collapse;">
         <thead><tr>${ths}</tr></thead>
