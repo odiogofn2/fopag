@@ -1,100 +1,101 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Controle Financeiro</title>
-  <link rel="stylesheet" href="style.css">
-  <link rel="icon" href="data:,">
+
+  <!-- CSS na raiz -->
+  <link rel="stylesheet" href="style.css" />
+  <link rel="icon" href="data:," />
 </head>
 <body>
 
-<div class="app">
+  <div class="app">
+    <header>
+      <h1>Controle Financeiro</h1>
+    </header>
 
-  <header>
-    <h1>Controle Financeiro</h1>
-  </header>
+    <nav class="tabs">
+      <button class="active" data-aba="lancamentos" type="button">Lançamentos</button>
+      <button data-aba="configuracoes" type="button">Configurações</button>
+    </nav>
 
-  <nav class="tabs">
-    <button class="active" data-aba="lancamentos">Lançamentos</button>
-    <button data-aba="configuracoes">Configurações</button>
-  </nav>
+    <!-- ================= LANCAMENTOS ================= -->
+    <section id="lancamentos" class="aba ativa">
 
-  <!-- ================= LANCAMENTOS ================= -->
-  <section id="lancamentos" class="aba ativa">
+      <form id="formLancamento">
 
-    <form id="formLancamento">
+        <select id="tipo" required>
+          <option value="">Tipo</option>
+          <option value="entrada">Entrada</option>
+          <option value="saida">Saída</option>
+        </select>
 
-      <select id="tipo" required>
-        <option value="">Tipo</option>
-        <option value="entrada">Entrada</option>
-        <option value="saida">Saída</option>
-      </select>
+        <input id="valor" placeholder="Valor (ex: 5,99 ou 5.99)" required />
 
-      <input id="valor" placeholder="Valor (ex: 5,99)" required>
+        <input id="parcelas" type="number" min="1" value="1" placeholder="Parcelas" required />
 
-      <input id="parcelas" type="number" min="1" value="1" placeholder="Parcelas">
+        <input id="local" placeholder="Descrição / Local" required />
 
-      <input id="local" placeholder="Descrição / Local" required>
+        <input id="banco" placeholder="Banco (ex: Nubank, BB, Caixa)" required />
 
-      <!-- NOVO: BANCO -->
-      <input id="banco" placeholder="Banco (ex: Nubank, Caixa, BB)" required>
+        <select id="pessoa" required></select>
+        <select id="categoria" required></select>
+        <select id="pagamento" required></select>
 
-      <!-- NOVO: PESSOA -->
-      <select id="pessoa" required></select>
+        <input type="month" id="mes" required />
 
-      <select id="categoria" required></select>
-      <select id="pagamento" required></select>
+        <button type="submit" id="btnSalvarLancamento">Salvar</button>
+      </form>
 
-      <input type="month" id="mes" required>
+      <ul id="listaLancamentos"></ul>
 
-      <button type="submit">Salvar</button>
-    </form>
+      <div class="totais">
+        <span id="totalEntradas">Entradas: R$ 0,00</span>
+        <span id="totalSaidas">Saídas: R$ 0,00</span>
+        <strong id="saldo">Saldo: R$ 0,00</strong>
+      </div>
 
-    <ul id="listaLancamentos"></ul>
+      <!-- Relatório mensal por pessoa -->
+      <div style="margin-top: 22px;">
+        <h2 style="margin-bottom: 10px;">Resumo do mês (por pessoa)</h2>
+        <div id="relatorioMensal"></div>
+      </div>
 
-    <div class="totais">
-      <span id="totalEntradas">Entradas: R$ 0,00</span>
-      <span id="totalSaidas">Saídas: R$ 0,00</span>
-      <strong id="saldo">Saldo: R$ 0,00</strong>
-    </div>
+    </section>
 
-    <!-- ✅ NOVO: RELATÓRIO MENSAL POR PESSOA -->
-    <div style="margin-top: 22px;">
-      <h2 style="margin-bottom: 10px;">Resumo do mês (por pessoa)</h2>
-      <div id="relatorioMensal"></div>
-    </div>
+    <!-- ================= CONFIGURACOES ================= -->
+    <section id="configuracoes" class="aba">
 
-  </section>
+      <h2>Categorias</h2>
+      <div class="box-config">
+        <input id="novaCategoria" placeholder="Nova categoria" />
+        <button id="btnAddCategoria" type="button">Adicionar</button>
+        <ul id="listaCategorias"></ul>
+      </div>
 
-  <!-- ================= CONFIGURACOES ================= -->
-  <section id="configuracoes" class="aba">
+      <h2>Formas de Pagamento</h2>
+      <div class="box-config">
+        <input id="novoPagamento" placeholder="Nova forma de pagamento" />
+        <button id="btnAddPagamento" type="button">Adicionar</button>
+        <ul id="listaPagamentos"></ul>
+      </div>
 
-    <h2>Categorias</h2>
-    <div class="box-config">
-      <input id="novaCategoria" placeholder="Nova categoria">
-      <button id="btnAddCategoria" type="button">Adicionar</button>
-      <ul id="listaCategorias"></ul>
-    </div>
+      <h2>Pessoas</h2>
+      <div class="box-config">
+        <input id="novaPessoa" placeholder="Nova pessoa (ex: Ana)" />
+        <button id="btnAddPessoa" type="button">Adicionar</button>
+        <ul id="listaPessoas"></ul>
+      </div>
 
-    <h2>Formas de Pagamento</h2>
-    <div class="box-config">
-      <input id="novoPagamento" placeholder="Nova forma de pagamento">
-      <button id="btnAddPagamento" type="button">Adicionar</button>
-      <ul id="listaPagamentos"></ul>
-    </div>
+    </section>
+  </div>
 
-    <!-- ✅ NOVO: PESSOAS (inclui Só eu) -->
-    <h2>Pessoas</h2>
-    <div class="box-config">
-      <input id="novaPessoa" placeholder="Nova pessoa (ex: Ana)">
-      <button id="btnAddPessoa" type="button">Adicionar</button>
-      <ul id="listaPessoas"></ul>
-    </div>
+  <!-- Supabase v2 (necessário) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-  </section>
-
-</div>
-
-<script src="script.js"></script>
+  <!-- JS na raiz -->
+  <script src="script.js"></script>
 </body>
 </html>
